@@ -1,0 +1,50 @@
+Subject: Phase 1 - Diamand: A functional language targeting the LLVM
+
+Phase 1 Project Selection Status Report
+
+Name: Chris Diamand
+
+College: King's
+
+User Identifier: cd493
+
+Director of Studies: Tim Griffin
+
+Please complete 1, 2 and 3 below.
+
+1. Please write 100 words on your current project ideas.
+
+One of:
+ - A compiler frontend targeting LLVM, for example for a
+   functional language, with Hindley-Milner type inference as an
+   extension goal.
+
+ - The "Faster TTC" project suggested by the Computer
+   Architecture group for 2013/2014. This would involve adding
+   features like pipelining and branch prediction (and more as
+   time allows) to the TTC CPU design used in the IB ECAD
+   practicals, then evaluation the resulting performance change.
+
+2. Please list names of potential project supervisors.
+
+I have spoken to David Chisnall and Stephen Kell about their
+project ideas involving LLVM. If I chose the TTC projects, I
+would contact Simon Moore.
+
+3. Is there any chance that your project will involve any
+computing resources other than the Computing Service's MCS and
+software that is already installed there, for example: your own
+machine, machines in College, special peripherals, imported
+software packages, special hardware, network access, substantial
+extra disc space on the MCS.
+
+If so indicate below what, and what it is needed for.
+
+The compiler project would require no extra software (LLVM and
+ML compilers are already installed on the MCS).
+
+The TTC project would require:
+ - A tPad FPGA board
+ - Access to Bluespec and Altera tools
+ - Ideally, access to the above tools on my local machine, which
+   would greatly increase compilation speed.
