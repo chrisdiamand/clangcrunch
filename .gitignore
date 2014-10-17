@@ -1,4 +1,7 @@
+*.aux
 *.class
+*.dvi
+*.log
 *.o
 *.pyc
 *.swo
