@@ -1,0 +1,7 @@
+libboost-filesystem-dev
+libboost-program-options-dev
+libboost-regex-dev
+libboost-system-dev
+libc6-dev
+libdwarf-dev
+ocaml-findlib
