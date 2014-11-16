@@ -1,37 +1,19 @@
 #!/usr/bin/env bash
 
 function add_link_path {
-    P=`realpath $1`
-    if [ -d "`dirname $P`" ]; then
-        if notin "$P" "$LIBRARY_PATH"; then
-            export LIBRARY_PATH=$P:$LIBRARY_PATH
-        fi
-        add_lib "$P"
-    else
-        echo "Error: '$1': Not a directory."
-    fi
+    add_path_to_list LD_LIBRARY_PATH $1
+    add_path_to_list LIBRARY_PATH $1 \
+        || echo "Error: '$1': Not a directory."
 }
 
 function add_incl_path {
-    P=`realpath $1`
-    if [ -d "$P" ]; then
-        if notin "$P" "$CPATH"; then
-            export CPATH=$P:$CPATH
-        fi
-    else
-        echo "Error: '$1': Not a directory."
-    fi
+    add_path_to_list CPATH $1 \
+        || echo "Error: '$1': Not a directory."
 }
 
 function add_class_path {
-    P=`realpath $1`
-    if [ -f "$P" ]; then
-        if notin "$P" "$CLASSPATH"; then
-            export CLASSPATH=$P:$CLASSPATH
-        fi
-    else
-        echo "Error: '$1': Not a directory."
-    fi
+    add_path_to_list CLASSPATH $1 \
+        || echo "Error: '$1': Not a directory."
 }
 
 export SRK31_PROJECTS=`realpath ~/src/srk31`
