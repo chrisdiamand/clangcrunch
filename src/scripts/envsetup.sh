@@ -35,6 +35,13 @@ add_link_path $SRK31_PROJECTS/libcxxgen/lib
 
 add_incl_path $SRK31_PROJECTS/libantlr3cxx/include
 
+export LIBALLOCS=$SRK31_PROJECTS/liballocs
+export LIBALLOCS_BASE=$LIBALLOCS
+add_incl_path $SRK31_PROJECTS/liballocs/include
+add_incl_path $SRK31_PROJECTS/liballocs/src
+add_link_path $SRK31_PROJECTS/liballocs/lib
+add_path_to_list PYTHONPATH $LIBALLOCS/tools/lang/c/lib
+
 export ANTLR_M4_PATH=$SRK31_PROJECTS/m4ntlr
 
 # ANTLR3. Use the version from here:
