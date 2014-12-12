@@ -1,7 +1,9 @@
 libboost-filesystem-dev
 libboost-program-options-dev
 libboost-regex-dev
+libboost-serialization-dev
 libboost-system-dev
 libc6-dev
 libdwarf-dev
+libelf-dev
 ocaml-findlib

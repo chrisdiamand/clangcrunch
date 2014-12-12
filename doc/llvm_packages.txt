@@ -1,1 +1,2 @@
+cmake
 libctypes-ocaml-dev
