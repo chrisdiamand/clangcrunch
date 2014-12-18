@@ -32,6 +32,7 @@ export ANTLR_M4_PATH=$SRK31_PROJECTS/m4ntlr
 # http://www.antlr3.org/download/antlr-3.4.tar.gz
 
 export ANTLR_SRC_PATH=`realpath ~/src/antlr-3.4`
+add_incl_path $ANTLR_SRC_PATH/runtime/C/dist/libantlr3c-3.4
 add_incl_path $ANTLR_SRC_PATH/runtime/C/dist/libantlr3c-3.4/include
 add_link_path $ANTLR_SRC_PATH/runtime/C/dist/libantlr3c-3.4/.libs
 add_class_path $ANTLR_SRC_PATH/lib/antlr-3.4-complete.jar
