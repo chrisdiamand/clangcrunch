@@ -1,0 +1,5 @@
+$ mkdir your/build/directory
+$ cd your/build/directory
+$ cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON path/to/llvm/sources
+$ cd path/to/llvm/sources
+$ ninja
