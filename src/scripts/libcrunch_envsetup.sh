@@ -21,6 +21,8 @@ add_incl_path $SRK31_PROJECTS/libantlr3cxx/include
 
 export LIBALLOCS=$SRK31_PROJECTS/liballocs
 export LIBALLOCS_BASE=$LIBALLOCS
+export ALLOCSITES_BASE=$SRK31_PROJECTS/allocsites
+export UNIQTYPES_BASE=$ALLOCSITES_BASE
 add_incl_path $SRK31_PROJECTS/liballocs/include
 add_incl_path $SRK31_PROJECTS/liballocs/src
 add_link_path $SRK31_PROJECTS/liballocs/lib
@@ -37,7 +39,3 @@ add_incl_path $ANTLR_SRC_PATH/runtime/C/dist/libantlr3c-3.4/include
 add_link_path $ANTLR_SRC_PATH/runtime/C/dist/libantlr3c-3.4/.libs
 add_class_path $ANTLR_SRC_PATH/lib/antlr-3.4-complete.jar
 export ANTLR="java org.antlr.Tool"
-
-# The CIL compiler wrapper uses this to store something, but defaults to
-# /usr/allocsites for some reason.
-export ALLOCSITES_BASE=/tmp/allocsites
