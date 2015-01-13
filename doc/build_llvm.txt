@@ -1,3 +1,15 @@
+--- Clone ---
+
+$ git clone http://llvm.org/git/llvm.git
+
+$ cd llvm/tools
+$ git clone http://llvm.org/git/clang.git
+
+$ cd llvm/projects
+$ git clone http://llvm.org/git/compiler-rt.git
+
+--- Build ---
+
 $ mkdir your/build/directory
 $ cd your/build/directory
 $ cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON path/to/llvm/sources
