@@ -16,10 +16,13 @@ function add_class_path {
         || echo "Error: '$1': Not a directory."
 }
 
+function add_bin_path {
+    add_path_to_list PATH $1 \
+        || echo "Error: '$1': Not a directory."
+}
+
 SCRIPT_DIR=`dirname $0`
 SCRIPT_DIR=`realpath $SCRIPT_DIR`
-
-echo $SCRIPT_DIR
 
 source $SCRIPT_DIR/libcrunch_envsetup.sh
 source $SCRIPT_DIR/clang_envsetup.sh
