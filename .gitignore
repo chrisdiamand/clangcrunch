@@ -1,8 +1,16 @@
+*.allocstubs.c
+*.allocstubs.i
 *.aux
+*.cil.c
 *.class
 *.dvi
+*.fixuplog
+*.i
+*.i.allocs
 *.log
 *.o
 *.pyc
+*.s
 *.swo
 *.swp
+a.out
