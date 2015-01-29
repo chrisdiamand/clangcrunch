@@ -20,7 +20,7 @@ libdwarfpp_build: libsrk31cxx_build libcxxfileno_build
 
 libcxxgen_build: libdwarfpp_build
 
-liballocs_build: liballocs_build libcxxgen_build \
+liballocs_build: libcxxgen_build \
                  libdwarfpp_build dwarfidl_build
 
 libcrunch_build: liballocs_build libcxxgen_build \
