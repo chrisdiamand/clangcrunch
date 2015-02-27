@@ -22,7 +22,7 @@ libcxxgen_build: libdwarfpp_build
 
 dwarfidl_build: antlr
 
-liballocs_build: libcxxgen_build \
+liballocs_build: libcxxgen_build cil \
                  libdwarfpp_build dwarfidl_build
 
 libcrunch_build: liballocs_build libcxxgen_build \
@@ -63,6 +63,25 @@ antlr_clean:
 %: | %.tar.gz
 	tar zxf $| -C $(shell dirname $|)
 	[ -e $@ ] || echo "Warning: $@ not created"
+
+### Fetching and building CIL ###
+
+CIL_DIR := cil-git
+CIL_REMOTE := git://git.code.sf.net/p/cil/code
+CIL_MAKEFILE := $(CIL_DIR)/Makefile
+CIL_BUILT := $(CIL_DIR)/bin/cilly
+
+$(CIL_DIR):
+	git clone $(CIL_REMOTE) $(CIL_DIR)
+
+$(CIL_MAKEFILE): | $(CIL_DIR)
+	cd $(CIL_DIR) && ./configure
+
+$(CIL_BUILT): | $(CIL_MAKEFILE) $(CIL_DIR)
+	$(MAKE) -C $(CIL_DIR)
+
+.PHONY: cil
+cil: $(CIL_BUILT)
 
 %_build:
 	$(MAKE) -C $*

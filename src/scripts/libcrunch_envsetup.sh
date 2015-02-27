@@ -44,6 +44,9 @@ export ANTLR="java org.antlr.Tool"
 add_link_path $SRK31_PROJECTS/libcrunch/lib
 add_bin_path $SRK31_PROJECTS/libcrunch/frontend/c/bin
 
+add_link_path $SRK31_PROJECTS/cil-git/lib
+add_bin_path $SRK31_PROJECTS/cil-git/bin
+
 function allocs_gdb {
     FNAME=/tmp/gdb_allocs_preload.txt
     echo "set env LD_PRELOAD $LIBALLOCS/src/liballocs_preload.so" > $FNAME
