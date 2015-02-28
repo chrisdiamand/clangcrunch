@@ -10,8 +10,10 @@ $ git clone http://llvm.org/git/compiler-rt.git
 
 --- Build ---
 
-$ mkdir your/build/directory
-$ cd your/build/directory
-$ cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON path/to/llvm/sources
+$ mkdir build/
+$ cd build/
+$ cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+# Or to build with Clang:
+$ CXX=clang++ CC=clang cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=DEBUG ..
 $ cd path/to/llvm/sources
 $ ninja
