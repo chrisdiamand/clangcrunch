@@ -4,7 +4,10 @@ import os
 import subprocess
 import sys
 
-ALLOCSDIR = os.path.join(os.path.dirname(__file__), "../crunch/liballocs")
+if "LIBALLOCS_BASE" in os.environ:
+    ALLOCSDIR = os.environ["LIBALLOCS_BASE"]
+else:
+    ALLOCSDIR = os.path.join(os.path.dirname(__file__), "../crunch/liballocs")
 ALLOCSDIR = os.path.realpath(ALLOCSDIR)
 
 class Test:
