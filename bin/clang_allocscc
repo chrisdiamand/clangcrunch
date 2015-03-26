@@ -36,7 +36,7 @@ class AllocsCC(AllocsCompilerWrapper):
                  saveTempsArgs = ["--save-temps=" + dirname]
         return AllocsCompilerWrapper.getCustomCompileArgs(self, sourceInputFiles) \
         + saveTempsArgs
-    
+
     def makeObjectFileName(self, sourceFile):
             nameStem, nameExtension = os.path.splitext(sourceFile)
             if (nameExtension == ".c"):
@@ -49,18 +49,18 @@ class AllocsCC(AllocsCompilerWrapper):
 
     def getCillyArgs(self, sourceFiles):
         # allocscc uses this unmodified (we're not an abstract base).
-        # PROBLEM: we only want to -include if we're compiling a C file. 
+        # PROBLEM: we only want to -include if we're compiling a C file.
         # Note that normally cilly will figure out when we're compiling
         # a .S file, say, and only pass options that are relevant. But
-        # it would be asking too much in this case. 
-        
+        # it would be asking too much in this case.
+
         allSourceFilesAreC = True
         for sourceFile in sourceFiles:
             if sourceFile.lang != "c" and not sourceFile.endswith(".c"):
                 allSourceFilesAreC = False
-        
+
         includeArgs = []
-        # We can only do monalloca, and anything else that involves -include, 
+        # We can only do monalloca, and anything else that involves -include,
         # if we're compiling only C files.
         if len(sourceFiles) > 0 and allSourceFilesAreC:
             self.debugMsg("All source files (%d) are C files\n" % len(sourceFiles))
@@ -70,7 +70,7 @@ class AllocsCC(AllocsCompilerWrapper):
         "--domonalloca"]
         else:
             self.debugMsg("No source files, or not all (only %d) are C files\n" % len(sourceFiles))
-        
+
         return [\
         "--load=%s" % (self.getLibAllocsBaseDir() + "tools/lang/c/dumpallocs/dumpallocs.cmxs"), \
            "--dodumpallocs", \
@@ -81,10 +81,10 @@ class AllocsCC(AllocsCompilerWrapper):
             # some unused stuff (unavoidably, I believe) which will
             # make compilation done with -Werror barf if we don't
             # silence them.
-    
+
     def getUnderlyingCompilerCommand(self, sourceFiles):
         return ["cilly"] + self.getCillyArgs(sourceFiles)
-    
+
     # HACK HACK HACK override buildOneObjectFile so that if we fail, we try the vanilla cc
     def runUnderlyingCompiler(self, sourceFiles, options):
         ret1 = AllocsCompilerWrapper.runUnderlyingCompiler(self, sourceFiles, options)
