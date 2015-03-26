@@ -27,7 +27,10 @@ add_incl_path $LIBALLOCS/include
 add_incl_path $LIBALLOCS/src
 add_link_path $LIBALLOCS/lib
 add_bin_path $LIBALLOCS/tools
+add_bin_path $LIBALLOCS/tools/lang/c/bin
+add_bin_path $LIBALLOCS/tools/lang/c++/bin
 diss_add_path_to_list PYTHONPATH $LIBALLOCS/tools/lang/c/lib
+export DEBUG_CC=1
 
 export ANTLR_M4_PATH=$SRK31_PROJECTS/m4ntlr
 
