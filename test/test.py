@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from os import path
 import os
 import subprocess
 import sys
@@ -7,8 +8,8 @@ import sys
 if "LIBALLOCS_BASE" in os.environ:
     ALLOCSDIR = os.environ["LIBALLOCS_BASE"]
 else:
-    ALLOCSDIR = os.path.join(os.path.dirname(__file__), "../crunch/liballocs")
-ALLOCSDIR = os.path.realpath(ALLOCSDIR)
+    ALLOCSDIR = path.join(path.dirname(__file__), "../crunch/liballocs")
+ALLOCSDIR = path.realpath(ALLOCSDIR)
 
 class Test:
     def run(self):
@@ -20,8 +21,8 @@ class Test:
             return status
 
         env = dict(os.environ)
-        liballocs = os.path.join(ALLOCSDIR, "lib/liballocs_preload.so")
-        env["LD_PRELOAD"] = os.path.realpath(liballocs)
+        liballocs = path.join(ALLOCSDIR, "lib/liballocs_preload.so")
+        env["LD_PRELOAD"] = path.realpath(liballocs)
         print("LD_PRELOAD=" + env["LD_PRELOAD"] + " " +
               " ".join(self.runCmd()))
         proc = subprocess.Popen(self.runCmd(), env = env)
@@ -32,14 +33,14 @@ class Test:
 
     def clean(self):
         for f in self.getCleanFiles():
-            if os.path.exists(f):
+            if path.exists(f):
                 print("Removing \'%s\'" % f)
                 os.unlink(f)
 
 class StockAllocsTest(Test):
     def __init__(self, fname):
         self.src_fname = fname
-        self.out_fname = os.path.splitext(self.src_fname)[0] \
+        self.out_fname = path.splitext(self.src_fname)[0] \
                        + "_" + self.getCompiler()
 
     def getCompiler(self):
@@ -66,8 +67,19 @@ class StockAllocsTest(Test):
                 ".i", ".cil.c", ".cil.i", ".cil.s", ".o.fixuplog", ".i.allocs"]
 
         files = [self.out_fname + e for e in exts]
-        files += [os.path.splitext(self.src_fname)[0] + e for e in exts]
+        files += [path.splitext(self.src_fname)[0] + e for e in exts]
         files += [self.out_fname]
+
+        if "ALLOCSITES_BASE" in os.environ:
+            sites = os.environ["ALLOCSITES_BASE"]
+        else:
+            sites = "/usr/lib/allocsites"
+        sites = path.realpath(sites)
+        sites = sites + path.realpath(self.out_fname)
+        exts = [".allocs", "-allocsites.c", "-allocsites.so", ".allocs.rej",
+        ".makelog", ".objallocs", ".srcallocs", ".srcallocs.rej", "-types.c",
+        "-types.c.log.gz", "-types.so"]
+        files += [sites + e for e in exts]
 
         return files
 
