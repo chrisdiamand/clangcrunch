@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 
-# Compiler wrapper for liballocs.
-# We mostly delegate to cilly,passing --save-temps=$( dirname "$inputfile" )
-# i.e. to ensure that temporaries get created in the source file's location
-# FIXME: This might break some builds using a separate objdir.
-# The Right Thing to do is to somehow replicate the source directory structure
-# rooted at the current directory. But it's not clear how to do this in general.
+import os
+import re
+import subprocess
+import sys
+import tempfile
 
-import os, sys, re, subprocess, tempfile
-# HACK
-sys.path.append(os.path.realpath(os.path.dirname(__file__) + "/../../.."))
-from allocscompilerwrapper import *
+# Load the compiler wrapper base class
+if "LIBALLOCS_BASE" in os.environ:
+    LIBALLOCS_BASE = os.environ["LIBALLOCS_BASE"]
+else:
+    LIBALLOCS_BASE = os.path.join(os.path.dirname(__file__), "../crunch/liballocs")
+LIBALLOCS_BASE = os.path.realpath(LIBALLOCS_BASE)
 
-class AllocsCC(AllocsCompilerWrapper):
+sys.path.append(os.path.join(LIBALLOCS_BASE, "tools"))
+from allocscompilerwrapper import AllocsCompilerWrapper
+
+class ClangAllocsCC(AllocsCompilerWrapper):
 
     def defaultL1AllocFns(self):
         return ["malloc(Z)p", "calloc(zZ)p", "realloc(pZ)p", "memalign(zZ)p"]
@@ -20,40 +24,24 @@ class AllocsCC(AllocsCompilerWrapper):
     def defaultFreeFns(self):
         return ["free(P)"]
 
-    def getCustomCompileArgs(self, sourceInputFiles):
-        # "-pipe" interferes with -save-temps, with disastrous conseqeunces
-        # trying to create files named "-.i", "-.s" which then get interpreted
-        # as command-line options.
-        #saveTempsArgs = ['-save-temps']
-        if not '-pipe' in sys.argv:
-            saveTempsArgs = ['-save-temps']
-        else:
-            saveTempsArgs = []
-        for sourceFile in sourceInputFiles:
-            dirname = os.path.dirname(sourceFile)
-            # FIXME: support multiple distinct directories here, if cilly can
-            if dirname != "":
-                 saveTempsArgs = ["--save-temps=" + dirname]
-        return AllocsCompilerWrapper.getCustomCompileArgs(self, sourceInputFiles) \
-        + saveTempsArgs
-
     def makeObjectFileName(self, sourceFile):
             nameStem, nameExtension = os.path.splitext(sourceFile)
             if (nameExtension == ".c"):
                 outputFilename = nameStem + ".o"
-                self.debugMsg("Making a secret output file (from .c source) " + outputFilename + "\n")
+                self.debugMsg("Making a secret output file (from .c source) " +
+                              outputFilename + "\n")
             else:
                 outputFilename = sourceFile + ".o"
-                self.debugMsg("Making a secret output file (from unknown source) " + outputFilename + "\n")
+                self.debugMsg("Making a secret output file (from unknown source) " +
+                              outputFilename + "\n")
             return outputFilename
 
-    def getCillyArgs(self, sourceFiles):
-        # allocscc uses this unmodified (we're not an abstract base).
-        # PROBLEM: we only want to -include if we're compiling a C file.
-        # Note that normally cilly will figure out when we're compiling
-        # a .S file, say, and only pass options that are relevant. But
-        # it would be asking too much in this case.
+    def getCustomCompileArgs(self, sourceInputFiles):
+        return ["-gdwarf-4", "-gstrict-dwarf",
+                "-fno-omit-frame-pointer", "-ffunction-sections"]
 
+    def getClangArgs(self, sourceFiles):
+        # Only use -include for C files.
         allSourceFilesAreC = True
         for sourceFile in sourceFiles:
             if sourceFile.lang != "c" and not sourceFile.endswith(".c"):
@@ -64,42 +52,27 @@ class AllocsCC(AllocsCompilerWrapper):
         # if we're compiling only C files.
         if len(sourceFiles) > 0 and allSourceFilesAreC:
             self.debugMsg("All source files (%d) are C files\n" % len(sourceFiles))
-            includeArgs = ["-include", \
-               os.path.dirname(__file__) + "/../../../../include/liballocs_cil_inlines.h", \
-        "--load=%s" % (self.getLibAllocsBaseDir() + "tools/lang/c/monalloca/monalloca.cmxs"), \
-        "--domonalloca"]
+            cil_inlines = os.path.join(LIBALLOCS_BASE,
+                                       "include/liballocs_cil_inlines.h")
+            includeArgs = ["-include", cil_inlines]
         else:
             self.debugMsg("No source files, or not all (only %d) are C files\n" % len(sourceFiles))
 
-        return [\
-        "--load=%s" % (self.getLibAllocsBaseDir() + "tools/lang/c/dumpallocs/dumpallocs.cmxs"), \
-           "--dodumpallocs", \
-            "--keepunused"] \
-            + includeArgs + \
-            ["-Wno-unused-variable", "-Wno-unused-label"]
-            # We need the above -Wno-unused-... because CIL creates
-            # some unused stuff (unavoidably, I believe) which will
-            # make compilation done with -Werror barf if we don't
-            # silence them.
+        return includeArgs
 
     def getUnderlyingCompilerCommand(self, sourceFiles):
-        return ["cilly"] + self.getCillyArgs(sourceFiles)
+        return ["clang", "-fsanitize=allocs"] + self.getClangArgs(sourceFiles)
 
-    # HACK HACK HACK override buildOneObjectFile so that if we fail, we try the vanilla cc
     def runUnderlyingCompiler(self, sourceFiles, options):
         ret1 = AllocsCompilerWrapper.runUnderlyingCompiler(self, sourceFiles, options)
         if (ret1 != 0):
-            originalCommand = self.getUnderlyingCompilerCommand(sourceFiles) + options
-            alternativeCommand = ["cc"] + [s for s in originalCommand if s != "cilly" and \
-                not s.startswith("--")]
-            self.debugMsg("Falling back to: " + " ".join(alternativeCommand) + "\n")
-            ret1 = subprocess.call(alternativeCommand)
-            if (ret1 == 0):
-                self.debugMsg("WARNING: fell back to cc to compile [%s]\n" % ", ".join(sourceFiles))
+            self.debugMsg("Underlying compiler exited with status %d." % ret1)
+            cmd = [self.getUnderlyingCompilerCommand(sourceFiles) + options]
+            self.debugMsg("Command was: " + " ".join(cmd))
+            sys.exit(-1)
         return ret1
 
 if __name__ == '__main__':
-    wrapper = AllocsCC()
+    wrapper = ClangAllocsCC()
     ret = wrapper.main()
     exit(ret)
-
