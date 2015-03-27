@@ -12,8 +12,12 @@ ALLOCSDIR = os.path.realpath(ALLOCSDIR)
 
 class Test:
     def run(self):
+        self.clean()
+
         print(" ".join(self.buildCmd()))
-        subprocess.call(self.buildCmd())
+        status = subprocess.call(self.buildCmd())
+        if status != 0:
+            return status
 
         env = dict(os.environ)
         liballocs = os.path.join(ALLOCSDIR, "lib/liballocs_preload.so")
