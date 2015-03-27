@@ -11,6 +11,15 @@ else:
     ALLOCSDIR = path.join(path.dirname(__file__), "../crunch/liballocs")
 ALLOCSDIR = path.realpath(ALLOCSDIR)
 
+TESTDIR = path.realpath(path.dirname(__file__))
+
+
+CLEAN_EXTS = ["-allocsites.c", "-allocsites.so", "-types.c", "-types.c.log.gz",
+              "-types.so", ".allocs", ".allocs.rej", ".allocstubs.c",
+              ".allocstubs.i", ".allocstubs.o", ".cil.c", ".cil.i", ".cil.s",
+              ".i", ".i.allocs", ".makelog", ".o", ".o.fixuplog", ".objallocs",
+              ".s", ".srcallocs", ".srcallocs.rej"]
+
 class Test:
     def run(self):
         self.clean()
@@ -63,11 +72,8 @@ class StockAllocsTest(Test):
         return ["./" + self.out_fname]
 
     def getCleanFiles(self):
-        exts = [".allocstubs.c", ".allocstubs.i", ".allocstubs.o", ".o", ".s",
-                ".i", ".cil.c", ".cil.i", ".cil.s", ".o.fixuplog", ".i.allocs"]
-
-        files = [self.out_fname + e for e in exts]
-        files += [path.splitext(self.src_fname)[0] + e for e in exts]
+        files = [self.out_fname + e for e in CLEAN_EXTS]
+        files += [path.splitext(self.src_fname)[0] + e for e in CLEAN_EXTS]
         files += [self.out_fname]
 
         if "ALLOCSITES_BASE" in os.environ:
@@ -76,10 +82,7 @@ class StockAllocsTest(Test):
             sites = "/usr/lib/allocsites"
         sites = path.realpath(sites)
         sites = sites + path.realpath(self.out_fname)
-        exts = [".allocs", "-allocsites.c", "-allocsites.so", ".allocs.rej",
-        ".makelog", ".objallocs", ".srcallocs", ".srcallocs.rej", "-types.c",
-        "-types.c.log.gz", "-types.so"]
-        files += [sites + e for e in exts]
+        files += [sites + e for e in CLEAN_EXTS]
 
         return files
 
@@ -111,6 +114,12 @@ def main():
     if "clean" in sys.argv:
         for t in tests:
             tests[t].clean()
+        for f in os.listdir(TESTDIR):
+            for e in CLEAN_EXTS:
+                fullpath = path.join(TESTDIR, f)
+                if fullpath.endswith(e) and path.exists(fullpath):
+                    print("Removing \'%s\'" % fullpath)
+                    os.unlink(fullpath)
         return 0
 
     testNames = sys.argv[1:]
