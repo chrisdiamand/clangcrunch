@@ -97,8 +97,9 @@ def register_tests():
         tests[t.getName()] = t
 
     add(StockAllocsTest("allocs_simple.c"))
-    add(StockAllocsTest("allocs_offsetof.c"))
     add(AllocsTest("allocs_simple.c"))
+    add(AllocsTest("allocs_offsetof_simple.c"))
+    add(AllocsTest("allocs_offsetof_composite.c"))
 
     return tests
 

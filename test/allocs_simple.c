@@ -8,8 +8,7 @@ struct foo {
     int x;
 };
 
-int main(void)
-{
+int main(void) {
     void *b = calloc(1, sizeof(struct foo));
 
     // assert that the alloc is a struct foo
