@@ -5,14 +5,19 @@ import os
 import subprocess
 import sys
 
-if "LIBALLOCS_BASE" in os.environ:
-    ALLOCSDIR = os.environ["LIBALLOCS_BASE"]
-else:
-    ALLOCSDIR = path.join(path.dirname(__file__), "../crunch/liballocs")
-ALLOCSDIR = path.realpath(ALLOCSDIR)
-
 TESTDIR = path.realpath(path.dirname(__file__))
 
+if "LIBALLOCS_BASE" in os.environ:
+    LIBALLOCS_BASE = os.environ["LIBALLOCS_BASE"]
+else:
+    LIBALLOCS_BASE = path.join(TESTDIR, "../crunch/liballocs")
+LIBALLOCS_BASE = path.realpath(LIBALLOCS_BASE)
+
+if "LIBCRUNCH_BASE" in os.environ:
+    LIBCRUNCH_BASE = os.environ["LIBCRUNCH_BASE"]
+else:
+    LIBCRUNCH_BASE = path.join(LIBALLOCS_BASE, "../libcrunch")
+LIBCRUNCH_BASE = path.realpath(LIBCRUNCH_BASE)
 
 CLEAN_EXTS = ["-allocsites.c", "-allocsites.so", "-types.c", "-types.c.log.gz",
               "-types.so", ".allocs", ".allocs.rej", ".allocstubs.c",
@@ -29,16 +34,20 @@ class Test:
         if status != 0:
             return status
 
-        env = dict(os.environ)
-        liballocs = path.join(ALLOCSDIR, "lib/liballocs_preload.so")
-        env["LD_PRELOAD"] = path.realpath(liballocs)
-        print("LD_PRELOAD=" + env["LD_PRELOAD"] + " " +
-              " ".join(self.runCmd()))
-        proc = subprocess.Popen(self.runCmd(), env = env)
+        env = self.getEnv()
+        assigns = ["%s='%s'" % (e, env[e]) for e in env]
+        print(" ".join(assigns), " ".join(self.runCmd()))
+        wholeEnv = dict(os.environ)
+        for e in env:
+            wholeEnv[e] = env[e]
+        proc = subprocess.Popen(self.runCmd(), env = wholeEnv)
         return proc.wait()
 
     def cleanFiles(self):
         return []
+
+    def getEnv(self):
+        return {}
 
     def clean(self):
         for f in self.getCleanFiles():
@@ -48,6 +57,7 @@ class Test:
 
 class StockAllocsTest(Test):
     def __init__(self, fname):
+        print(fname)
         self.src_fname = fname
         self.out_fname = path.splitext(self.src_fname)[0] \
                        + "_" + self.getCompiler()
@@ -63,10 +73,15 @@ class StockAllocsTest(Test):
         cmd += ["-g3", "-gstrict-dwarf", "-std=c99",
                 "-fno-eliminate-unused-debug-types",
                 "-O2", "-DUSE_STARTUP_BRK",
-                "-I" + ALLOCSDIR + "/include"]
+                "-I" + LIBALLOCS_BASE + "/include"]
         cmd += ["-std=c99", self.src_fname,
                 "-o", self.out_fname]
         return cmd
+
+    def getEnv(self):
+        liballocs = path.join(LIBALLOCS_BASE, "lib/liballocs_preload.so")
+        env = {"LD_PRELOAD": path.realpath(liballocs)}
+        return env
 
     def runCmd(self):
         return ["./" + self.out_fname]
@@ -86,6 +101,26 @@ class StockAllocsTest(Test):
 
         return files
 
+class CrunchTest(StockAllocsTest):
+    def getCompiler(self):
+        return "crunchcc"
+
+    def buildCmd(self):
+        cmd = [self.getCompiler()]
+        cmd += ["-D_GNU_SOURCE", "-g3", "-gstrict-dwarf", "-std=c99",
+                "-fno-eliminate-unused-debug-types", "-DUSE_STARTUP_BRK",
+                "-I" + path.join(LIBCRUNCH_BASE, "include"),
+                "-I" + path.join(LIBALLOCS_BASE, "include"),
+                "-L" + path.join(LIBCRUNCH_BASE, "lib"),
+                "-L" + path.join(LIBALLOCS_BASE, "lib")]
+        cmd += [self.src_fname, "-o", self.out_fname]
+        return cmd
+
+    def getEnv(self):
+        liballocs = path.join(LIBCRUNCH_BASE, "lib/libcrunch_preload.so")
+        env = {"LD_PRELOAD": path.realpath(liballocs)}
+        return env
+
 class AllocsTest(StockAllocsTest):
     def getCompiler(self):
         return "clang_allocscc"
@@ -100,6 +135,7 @@ def register_tests():
     add(AllocsTest("allocs/simple.c"))
     add(AllocsTest("allocs/offsetof_simple.c"))
     add(AllocsTest("allocs/offsetof_composite.c"))
+    add(CrunchTest("crunch/hello_heap.c"))
 
     return tests
 
