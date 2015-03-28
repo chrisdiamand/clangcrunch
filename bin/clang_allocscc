@@ -67,7 +67,7 @@ class ClangAllocsCC(AllocsCompilerWrapper):
         ret1 = AllocsCompilerWrapper.runUnderlyingCompiler(self, sourceFiles, options)
         if (ret1 != 0):
             self.debugMsg("Underlying compiler exited with status %d." % ret1)
-            cmd = [self.getUnderlyingCompilerCommand(sourceFiles) + options]
+            cmd = self.getUnderlyingCompilerCommand(sourceFiles) + options
             self.debugMsg("Command was: " + " ".join(cmd))
             sys.exit(-1)
         return ret1
