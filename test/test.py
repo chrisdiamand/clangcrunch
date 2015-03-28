@@ -57,7 +57,6 @@ class Test:
 
 class StockAllocsTest(Test):
     def __init__(self, fname):
-        print(fname)
         self.src_fname = fname
         self.out_fname = path.splitext(self.src_fname)[0] \
                        + "_" + self.getCompiler()
@@ -101,7 +100,11 @@ class StockAllocsTest(Test):
 
         return files
 
-class CrunchTest(StockAllocsTest):
+class AllocsTest(StockAllocsTest):
+    def getCompiler(self):
+        return "allocscc"
+
+class StockCrunchTest(StockAllocsTest):
     def getCompiler(self):
         return "crunchcc"
 
@@ -121,9 +124,9 @@ class CrunchTest(StockAllocsTest):
         env = {"LD_PRELOAD": path.realpath(liballocs)}
         return env
 
-class AllocsTest(StockAllocsTest):
+class CrunchTest(StockCrunchTest):
     def getCompiler(self):
-        return "clang_allocscc"
+        return "clang_crunchcc"
 
 def register_tests():
     tests = {}
@@ -131,22 +134,34 @@ def register_tests():
         assert isinstance(t, Test)
         tests[t.getName()] = t
 
-    add(StockAllocsTest("allocs/simple.c"))
-    add(AllocsTest("allocs/simple.c"))
-    add(AllocsTest("allocs/offsetof_simple.c"))
     add(AllocsTest("allocs/offsetof_composite.c"))
+    add(AllocsTest("allocs/offsetof_simple.c"))
+    add(AllocsTest("allocs/simple.c"))
+    add(StockAllocsTest("allocs/simple.c"))
+
     add(CrunchTest("crunch/hello_heap.c"))
+    add(StockCrunchTest("crunch/hello_heap.c"))
 
     return tests
+
+def zshcomp(tests, prefix = ""):
+    tests = list(tests) + ["all", "clean"]
+    tests.sort()
+    for t in tests:
+        print(prefix, t)
+
+def helpAndExit(tests):
+    print("Usage: %s TEST ..." % sys.argv[0])
+    print("Available tests:")
+    zshcomp(tests, prefix = "   ")
+    sys.exit(0)
 
 def main():
     tests = register_tests()
 
     if "zshcomp" in sys.argv:
-        for t in tests:
-            print(t)
-        print("clean")
-        return 0
+        zshcomp(tests)
+        sys.exit(0)
 
     if "clean" in sys.argv:
         for t in tests:
@@ -160,7 +175,11 @@ def main():
         return 0
 
     testNames = sys.argv[1:]
+
     if len(testNames) == 0:
+        helpAndExit(tests)
+
+    if "all" in testNames:
         testNames = list(tests.keys())
 
     nonexist = 0
