@@ -16,11 +16,11 @@ clean: $(SUBDIRS:%=%_clean)
 
 libsrk31cxx_build: libcxxfileno_build
 
-libdwarfpp_build: libsrk31cxx_build libcxxfileno_build
+libdwarfpp_build: libsrk31cxx_build libcxxfileno_build libdwarf
 
 libcxxgen_build: libdwarfpp_build
 
-dwarfidl_build: antlr
+dwarfidl_build: antlr libdwarf libcxxgen_build libdwarfpp_build
 
 liballocs_build: libcxxgen_build cil \
                  libdwarfpp_build dwarfidl_build
@@ -39,7 +39,7 @@ ANTLR_RUNTIME := $(ANTLR_RUNTIME_DIR)/.libs/libantlr3c.so
 
 $(ANTLR_TARGZ):
 	wget $(ANTLR_URL)
-	md5sum -c MD5SUMS
+	md5sum -c MD5SUM_antlr
 
 # We just need to untar the archive
 $(ANTLR_JAR): $(ANTLR_DIR)
@@ -82,6 +82,29 @@ $(CIL_BUILT): | $(CIL_MAKEFILE) $(CIL_DIR)
 
 .PHONY: cil
 cil: $(CIL_BUILT)
+
+### Fetching and building libdwarf (debian version is too old) ###
+LIBDWARF_TARGZ := libdwarf-20150310.tar.gz
+LIBDWARF_URL := http://www.prevanders.net/$(LIBDWARF_TARGZ)
+LIBDWARF_DIR := dwarf-20150310
+LIBDWARF_MAKEFILE := $(LIBDWARF_DIR)/Makefile
+LIBDWARF_BUILT := $(LIBDWARF_DIR)/dwarfdump/dwarfdump
+
+$(LIBDWARF_TARGZ):
+	wget $(LIBDWARF_URL)
+	md5sum -c MD5SUM_libdwarf
+
+$(LIBDWARF_DIR): | $(LIBDWARF_TARGZ)
+	tar zxvf $(LIBDWARF_TARGZ)
+
+$(LIBDWARF_MAKEFILE): | $(LIBDWARF_DIR)
+	cd $(LIBDWARF_DIR) && ./configure
+
+$(LIBDWARF_BUILT): | $(LIBDWARF_MAKEFILE) $(LIBDWARF_DIR)
+	$(MAKE) -C $(LIBDWARF_DIR)
+
+.PHONY: libdwarf
+libdwarf: $(LIBDWARF_BUILT)
 
 %_build:
 	$(MAKE) -C $*

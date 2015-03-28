@@ -1,5 +1,5 @@
 *
 !.gitignore
 !.repolist.py
-!MD5SUMS
+!MD5SUM*
 !Makefile

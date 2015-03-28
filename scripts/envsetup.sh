@@ -40,5 +40,6 @@ SCRIPT_DIR=`realpath $SCRIPT_DIR`
 source $SCRIPT_DIR/libcrunch_envsetup.sh
 source $SCRIPT_DIR/clang_envsetup.sh
 source $SCRIPT_DIR/utils_envsetup.sh
+source $SCRIPT_DIR/libdwarf_envsetup.sh
 
 add_bin_path $SCRIPT_DIR/../bin
