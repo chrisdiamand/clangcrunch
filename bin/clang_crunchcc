@@ -13,12 +13,12 @@ sys.path.append(os.path.realpath(os.path.dirname(__file__) + "/../../../../libal
 from allocscc import AllocsCC
 
 class CrunchCC(AllocsCC):
- 
+
     def fixupDotO(self, filename, errfile):
         # also link the file with the uniqtypes it references
         cmd = [self.getLibAllocsBaseDir() + "/tools/lang/c/bin/link-used-types", filename]
         self.debugMsg("Calling " + " ".join(cmd) + "\n")
-        
+
         errfilename = os.path.realpath(filename) + ".fixuplog"
 
         with (self.makeErrFile(errfilename, "w+") if not errfile else errfile) as errfile:
@@ -28,21 +28,21 @@ class CrunchCC(AllocsCC):
                 return ret  # give up now
 
             return AllocsCC.fixupDotO(self, filename, errfile)
-        
+
     def getCillyArgs(self, sourceFiles):
-        # PROBLEM: we only want to -include if we're compiling a C file. 
+        # PROBLEM: we only want to -include if we're compiling a C file.
         # Note that normally cilly will figure out when we're compiling
         # a .S file, say, and only pass options that are relevant. But
-        # it would be asking too much in this case. 
-        
+        # it would be asking too much in this case.
+
         allSourceFilesAreC = True
         for sourceFile in sourceFiles:
             if sourceFile.lang != "c" and not sourceFile.endswith(".c"):
                 allSourceFilesAreC = False
-        
+
         includeArgs = []
         if len(sourceFiles) > 0 and allSourceFilesAreC:
-            # We can only do trumptr, and anything else that involves -include, 
+            # We can only do trumptr, and anything else that involves -include,
             # if we're compiling only C files.
             includeArgs = ["-include", \
                 os.path.dirname(__file__) + "/../../../include/libcrunch_cil_inlines.h", \
@@ -50,7 +50,7 @@ class CrunchCC(AllocsCC):
             "--dotrumptr"]
         else:
             self.debugMsg("No source files, or not all (only %d) are C files\n" % len(sourceFiles))
-        
+
         # do dumpallocs et al *and* trumptr
         return AllocsCC.getCillyArgs(self, sourceFiles) + \
             ["--keepunused"] \
@@ -60,10 +60,10 @@ class CrunchCC(AllocsCC):
             # some unused stuff (unavoidably, I believe) which will
             # make compilation done with -Werror barf if we don't
             # silence them.
-    
+
     def getLibNameStem(self):
         return "crunch"
-     
+
     def getLinkPath(self):
         return os.path.dirname(__file__) + "/../../../lib"
 
@@ -71,4 +71,3 @@ if __name__ == '__main__':
     wrapper = CrunchCC()
     ret = wrapper.main()
     exit(ret)
-
