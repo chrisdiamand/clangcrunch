@@ -96,10 +96,10 @@ def register_tests():
         assert isinstance(t, Test)
         tests[t.getName()] = t
 
-    add(StockAllocsTest("allocs_simple.c"))
-    add(AllocsTest("allocs_simple.c"))
-    add(AllocsTest("allocs_offsetof_simple.c"))
-    add(AllocsTest("allocs_offsetof_composite.c"))
+    add(StockAllocsTest("allocs/simple.c"))
+    add(AllocsTest("allocs/simple.c"))
+    add(AllocsTest("allocs/offsetof_simple.c"))
+    add(AllocsTest("allocs/offsetof_composite.c"))
 
     return tests
 
