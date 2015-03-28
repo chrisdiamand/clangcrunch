@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import re
-import subprocess
 import sys
-import tempfile
 
 # Load the compiler wrapper base class
 if "LIBALLOCS_BASE" in os.environ:

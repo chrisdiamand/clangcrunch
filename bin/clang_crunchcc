@@ -3,7 +3,10 @@
 #!/home/stephen/bin/gdbrun python
 
 # Compiler wrapper for libcrunch.
-import os, sys, re, subprocess, tempfile
+import os
+import subprocess
+import sys
+from os import path
 
 # HACK
 sys.path.append(os.path.realpath(os.path.dirname(__file__) + "/../../../../liballocs.hg/tools/lang/c/lib"))
