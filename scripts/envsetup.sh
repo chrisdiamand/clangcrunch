@@ -34,6 +34,11 @@ function add_bin_path {
         || echo "Warning: '$1': Not a directory."
 }
 
+function add_python_path {
+    diss_add_path_to_list PYTHONPATH $1 \
+        || echo "Warning: '$1': Not a directory."
+}
+
 SCRIPT_DIR=`dirname $0`
 SCRIPT_DIR=`realpath $SCRIPT_DIR`
 
@@ -43,3 +48,4 @@ source $SCRIPT_DIR/utils_envsetup.sh
 #source $SCRIPT_DIR/libdwarf_envsetup.sh
 
 add_bin_path $SCRIPT_DIR/../bin
+add_python_path $SCRIPT_DIR/../lib
