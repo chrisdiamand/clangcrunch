@@ -31,6 +31,12 @@ class ClangCrunchCC(ClangAllocsCC):
 
             return ClangAllocsCC.fixupDotO(self, filename, errfile)
 
+    def getClangArgs(self, sourceFiles):
+        args = ClangAllocsCC.getClangArgs(self, sourceFiles)
+        args += ["-include",
+                 path.join(LIBCRUNCH_BASE, "include/libcrunch_cil_inlines.h")]
+        return args
+
     def getUnderlyingCompilerCommand(self, srcFiles):
         return ["clang", "-fsanitize=crunch"] + self.getClangArgs(srcFiles)
 
