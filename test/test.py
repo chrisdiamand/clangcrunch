@@ -173,6 +173,8 @@ def register_tests():
     addCrunchTest("crunch/function_refines.c")
     addCrunchTest("crunch/fail_funptr.c", fail = True)
     addCrunchTest("crunch/hello_array.c")
+    addCrunchTest("crunch/indirect.c")
+    addCrunchTest("crunch/qualified_char.c")
 
     return tests
 
