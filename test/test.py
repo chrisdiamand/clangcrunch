@@ -55,14 +55,13 @@ class Test:
                 print("Removing \'%s\'" % f)
                 os.unlink(f)
 
-class StockAllocsTest(Test):
+class AllocsTest(Test):
     def __init__(self, fname):
         self.src_fname = fname
-        self.out_fname = path.splitext(self.src_fname)[0] \
-                       + "_" + self.getCompiler()
+        self.out_fname = path.splitext(self.src_fname)[0]
 
     def getCompiler(self):
-        return "allocscc"
+        return "clang_allocscc"
 
     def getName(self):
         return self.out_fname
@@ -100,13 +99,16 @@ class StockAllocsTest(Test):
 
         return files
 
-class AllocsTest(StockAllocsTest):
+class StockAllocsTest(AllocsTest):
     def getCompiler(self):
-        return "clang_allocscc"
+        return "allocscc"
 
-class StockCrunchTest(StockAllocsTest):
+    def getName(self):
+        return "stock/" + AllocsTest.getName(self)
+
+class CrunchTest(AllocsTest):
     def getCompiler(self):
-        return "crunchcc"
+        return "clang_crunchcc"
 
     def buildCmd(self):
         cmd = [self.getCompiler()]
@@ -124,9 +126,12 @@ class StockCrunchTest(StockAllocsTest):
         env = {"LD_PRELOAD": path.realpath(liballocs)}
         return env
 
-class CrunchTest(StockCrunchTest):
+class StockCrunchTest(CrunchTest):
     def getCompiler(self):
-        return "clang_crunchcc"
+        return "crunchcc"
+
+    def getName(self):
+        return "stock/" + CrunchTest.getName(self)
 
 def register_tests():
     tests = {}
@@ -195,12 +200,14 @@ def main():
     nonexist = 0
     passed = 0
     failed = 0
+    failedTests = []
     total = len(testNames)
 
     for tn in testNames:
         if tn in tests:
             if tests[tn].run() != 0:
                 failed += 1
+                failedTests += [tn]
             else:
                 passed += 1
         else:
@@ -213,6 +220,9 @@ def main():
     print("    Failed :", failed)
     print("    Invalid:", nonexist)
     print("    Total  :", total)
+
+    if failed > 0:
+        print("Failed tests:", " ".join(failedTests))
 
 if __name__ == "__main__":
     main()
