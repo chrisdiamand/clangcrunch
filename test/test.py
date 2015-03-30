@@ -167,12 +167,12 @@ def register_tests():
     addAllocsTest("allocs/offsetof_simple.c")
     addAllocsTest("allocs/simple.c")
 
-    addCrunchTest("crunch/hello_heap.c")
-    addCrunchTest("crunch/hello_funptr.c",
-                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
-    addCrunchTest("crunch/function_refines.c")
+    addCrunchTest("crunch/array.c")
     addCrunchTest("crunch/fail_funptr.c", fail = True)
-    addCrunchTest("crunch/hello_array.c")
+    addCrunchTest("crunch/function_refines.c")
+    addCrunchTest("crunch/funptr.c",
+                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
+    addCrunchTest("crunch/heap.c")
     addCrunchTest("crunch/indirect.c")
     addCrunchTest("crunch/qualified_char.c")
 
