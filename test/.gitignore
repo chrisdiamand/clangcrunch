@@ -1,3 +1,4 @@
-*_allocscc
-*_clang_allocscc
-*_crunchcc
+*
+!*.c
+!*.cpp
+!*.py

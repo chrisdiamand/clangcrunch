@@ -102,7 +102,7 @@ class StockAllocsTest(Test):
 
 class AllocsTest(StockAllocsTest):
     def getCompiler(self):
-        return "allocscc"
+        return "clang_allocscc"
 
 class StockCrunchTest(StockAllocsTest):
     def getCompiler(self):
@@ -132,15 +132,25 @@ def register_tests():
     tests = {}
     def add(t):
         assert isinstance(t, Test)
-        tests[t.getName()] = t
+        name = t.getName()
+        if name in tests:
+            print("Error: Test '%s' already exists." % name)
+        else:
+            tests[t.getName()] = t
 
-    add(AllocsTest("allocs/offsetof_composite.c"))
-    add(AllocsTest("allocs/offsetof_simple.c"))
-    add(AllocsTest("allocs/simple.c"))
-    add(StockAllocsTest("allocs/simple.c"))
+    def addAllocsTest(t):
+        add(AllocsTest(t))
+        add(StockAllocsTest(t))
 
-    add(CrunchTest("crunch/hello_heap.c"))
-    add(StockCrunchTest("crunch/hello_heap.c"))
+    def addCrunchTest(t):
+        add(CrunchTest(t))
+        add(StockCrunchTest(t))
+
+    addAllocsTest("allocs/offsetof_composite.c")
+    addAllocsTest("allocs/offsetof_simple.c")
+    addAllocsTest("allocs/simple.c")
+
+    addCrunchTest("crunch/hello_heap.c")
 
     return tests
 
