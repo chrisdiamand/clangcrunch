@@ -134,6 +134,11 @@ class CrunchTest(AllocsTest):
         return self.runEnv
 
 class StockCrunchTest(CrunchTest):
+    def getBuildCmd(self):
+        cmd = CrunchTest.getBuildCmd(self)
+        cmd = [cmd[0], "-gstrict-dwarf"] + cmd[1:]
+        return cmd
+
     def getCompiler(self):
         return "crunchcc"
 
