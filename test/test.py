@@ -186,7 +186,7 @@ def register_tests():
     return tests
 
 def zshcomp(tests, prefix = ""):
-    tests = list(tests) + ["all", "clean"]
+    tests = list(tests) + ["ALL", "CLEAN"]
     tests.sort()
     for t in tests:
         print(prefix, t)
@@ -200,11 +200,11 @@ def helpAndExit(tests):
 def main():
     tests = register_tests()
 
-    if "zshcomp" in sys.argv:
+    if "ZSHCOMP" in sys.argv:
         zshcomp(tests)
         sys.exit(0)
 
-    if "clean" in sys.argv:
+    if "CLEAN" in sys.argv:
         for t in tests:
             tests[t].clean()
         for f in os.listdir(TESTDIR):
@@ -219,7 +219,7 @@ def main():
     if len(testNames) == 0:
         helpAndExit(tests)
 
-    if "all" in testNames:
+    if "ALL" in testNames:
         testNames = list(tests.keys())
 
     nonexist = 0
