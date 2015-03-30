@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-/* Disable optimization to prevent compiler from un-indirecting
- * our indirect calls. */
+/* This should be built with -O0 (optimisation disabled) to prevent compiler
+ * from un-indirecting our indirect calls. */
 
 struct S {
     void *(*fn)(size_t);
@@ -11,7 +11,9 @@ struct S {
 
 void *(*fs[2])(size_t);
 
-int (__attribute__((optimize("O0"))) main)(void) {
+// Clang doesn't support this attribute.
+// int (__attribute__((optimize("O0"))) main)(void) {
+int main(void) {
     void *(*fn)(size_t) = &malloc;
 
     int *blah = (int *) fn(200 * sizeof (int));

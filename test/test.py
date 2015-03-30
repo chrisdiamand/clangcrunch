@@ -58,12 +58,14 @@ class Test:
                 os.unlink(f)
 
 class AllocsTest(Test):
-    def __init__(self, fname, buildEnv = {}, runEnv = {}, fail = False):
+    def __init__(self, fname, buildEnv = {}, runEnv = {},
+                 fail = False, flags = []):
         self.src_fname = fname
         self.out_fname = path.splitext(self.src_fname)[0]
         self.buildEnv = buildEnv
         self.runEnv = runEnv
         self.shouldFail = fail
+        self.flags = flags
 
     def getCompiler(self):
         return "clang_allocscc"
@@ -74,6 +76,7 @@ class AllocsTest(Test):
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
         cmd += ["-std=c99", "-DUSE_STARTUP_BRK"]
+        cmd += self.flags
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
@@ -123,8 +126,9 @@ class CrunchTest(AllocsTest):
 
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
-        cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK", "-O2"]
+        cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"]
         cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
+        cmd += self.flags
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
@@ -159,10 +163,12 @@ def register_tests():
         add(AllocsTest(t))
         add(StockAllocsTest(t))
 
-    def addCrunchTest(t, buildEnv = {}, runEnv = {}, fail = False):
-        add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv, fail = fail))
+    def addCrunchTest(t, buildEnv = {}, runEnv = {},
+                      fail = False, flags = []):
+        add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
+                       fail = fail, flags = flags))
         add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            fail = fail))
+                            fail = fail, flags = flags))
 
     addAllocsTest("allocs/offsetof_composite.c")
     addAllocsTest("allocs/offsetof_simple.c")
@@ -174,7 +180,7 @@ def register_tests():
     addCrunchTest("crunch/funptr.c",
                   buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
     addCrunchTest("crunch/heap.c")
-    addCrunchTest("crunch/indirect.c")
+    addCrunchTest("crunch/indirect.c", flags = ["-O0"])
     addCrunchTest("crunch/qualified_char.c")
 
     return tests
