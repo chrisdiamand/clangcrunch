@@ -59,11 +59,12 @@ class Test:
                 os.unlink(f)
 
 class AllocsTest(Test):
-    def __init__(self, fname, buildEnv = {}, runEnv = {}):
+    def __init__(self, fname, buildEnv = {}, runEnv = {}, fail = False):
         self.src_fname = fname
         self.out_fname = path.splitext(self.src_fname)[0]
         self.buildEnv = buildEnv
         self.runEnv = runEnv
+        self.shouldFail = fail
 
     def getCompiler(self):
         return "clang_allocscc"
@@ -155,9 +156,10 @@ def register_tests():
         add(AllocsTest(t))
         add(StockAllocsTest(t))
 
-    def addCrunchTest(t, buildEnv = {}, runEnv = {}):
-        add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv))
-        add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv))
+    def addCrunchTest(t, buildEnv = {}, runEnv = {}, fail = False):
+        add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv, fail = fail))
+        add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
+                            fail = fail))
 
     addAllocsTest("allocs/offsetof_composite.c")
     addAllocsTest("allocs/offsetof_simple.c")
@@ -166,6 +168,9 @@ def register_tests():
     addCrunchTest("crunch/hello_heap.c")
     addCrunchTest("crunch/hello_funptr.c",
                   buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
+    addCrunchTest("crunch/function_refines.c")
+    addCrunchTest("crunch/fail_funptr.c", fail = True)
+    addCrunchTest("crunch/hello_array.c")
 
     return tests
 
