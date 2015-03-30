@@ -55,7 +55,6 @@ class Test:
     def clean(self):
         for f in self.getCleanFiles():
             if path.exists(f):
-                print("Removing \'%s\'" % f)
                 os.unlink(f)
 
 class AllocsTest(Test):
@@ -203,7 +202,6 @@ def main():
             for e in CLEAN_EXTS:
                 fullpath = path.join(TESTDIR, f)
                 if fullpath.endswith(e) and path.exists(fullpath):
-                    print("Removing \'%s\'" % fullpath)
                     os.unlink(fullpath)
         return 0
 
