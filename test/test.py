@@ -74,12 +74,8 @@ class AllocsTest(Test):
 
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
-        cmd += ["-g3", "-gstrict-dwarf", "-std=c99",
-                "-fno-eliminate-unused-debug-types",
-                "-O2", "-DUSE_STARTUP_BRK",
-                "-I" + LIBALLOCS_BASE + "/include"]
-        cmd += ["-std=c99", self.src_fname,
-                "-o", self.out_fname]
+        cmd += ["-std=c99", "-DUSE_STARTUP_BRK"]
+        cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
     def getBuildEnv(self):
@@ -109,6 +105,13 @@ class AllocsTest(Test):
         return files
 
 class StockAllocsTest(AllocsTest):
+    def getBuildCmd(self):
+        cmd = AllocsTest.getBuildCmd(self)
+        # Without this argument there are "undefined reference to
+        # `local_accessors'" errors.
+        cmd = [cmd[0], "-gstrict-dwarf"] + cmd[1:]
+        return cmd
+
     def getCompiler(self):
         return "allocscc"
 
@@ -121,12 +124,7 @@ class CrunchTest(AllocsTest):
 
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
-        cmd += ["-D_GNU_SOURCE", "-g3", "-gstrict-dwarf", "-std=c99",
-                "-fno-eliminate-unused-debug-types", "-DUSE_STARTUP_BRK",
-                "-I" + path.join(LIBCRUNCH_BASE, "include"),
-                "-I" + path.join(LIBALLOCS_BASE, "include"),
-                "-L" + path.join(LIBCRUNCH_BASE, "lib"),
-                "-L" + path.join(LIBALLOCS_BASE, "lib")]
+        cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK", "-O2"]
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 

@@ -34,8 +34,7 @@ class ClangAllocsCC(AllocsCompilerWrapper):
             return outputFilename
 
     def getCustomCompileArgs(self, sourceInputFiles):
-        return ["-gdwarf-4", "-gstrict-dwarf",
-                "-fno-omit-frame-pointer", "-ffunction-sections"]
+        return ["-gdwarf-4", "-fno-omit-frame-pointer", "-ffunction-sections"]
 
     def getClangArgs(self, sourceFiles):
         # Only use -include for C files.
@@ -55,7 +54,8 @@ class ClangAllocsCC(AllocsCompilerWrapper):
         else:
             self.debugMsg("No source files, or not all (only %d) are C files\n" % len(sourceFiles))
 
-        return includeArgs
+        ret = ["-g", "-fno-eliminate-unused-debug-types"]
+        return ret + includeArgs
 
     def getUnderlyingCompilerCommand(self, sourceFiles):
         return ["clang", "-fsanitize=allocs"] + self.getClangArgs(sourceFiles)
