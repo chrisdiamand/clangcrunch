@@ -43,7 +43,7 @@ class Test:
 
         return runWithEnv(self.getRunCmd(), self.getRunEnv())
 
-    def cleanFiles(self):
+    def getCleanFiles(self):
         return []
 
     def getBuildEnv(self):
@@ -54,13 +54,15 @@ class Test:
 
     def clean(self):
         for f in self.getCleanFiles():
+            print(f)
             if path.exists(f):
                 os.unlink(f)
 
 class AllocsTest(Test):
     def __init__(self, fname, buildEnv = {}, runEnv = {},
                  fail = False, flags = []):
-        self.src_fname = fname
+        self.testName = path.splitext(fname)[0]
+        self.src_fname = path.realpath(path.join(TESTDIR, fname))
         self.out_fname = path.splitext(self.src_fname)[0]
         self.buildEnv = buildEnv
         self.runEnv = runEnv
@@ -71,7 +73,7 @@ class AllocsTest(Test):
         return "clang_allocscc"
 
     def getName(self):
-        return self.out_fname
+        return self.testName
 
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
@@ -89,7 +91,7 @@ class AllocsTest(Test):
         return self.runEnv
 
     def getRunCmd(self):
-        return ["./" + self.out_fname]
+        return [self.out_fname]
 
     def getCleanFiles(self):
         files = [self.out_fname + e for e in CLEAN_EXTS]
@@ -208,8 +210,9 @@ def main():
         for t in tests:
             tests[t].clean()
         for f in os.listdir(TESTDIR):
+            fullpath = path.join(TESTDIR, f)
+            print(fullpath)
             for e in CLEAN_EXTS:
-                fullpath = path.join(TESTDIR, f)
                 if fullpath.endswith(e) and path.exists(fullpath):
                     os.unlink(fullpath)
         return 0
