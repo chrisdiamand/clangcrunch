@@ -1,4 +1,10 @@
 *
+!allocs
+!crunch
+
 !*.c
+*.allocstubs.c
+*.cil.c
+
 !*.cpp
 !*.py

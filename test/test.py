@@ -25,28 +25,31 @@ CLEAN_EXTS = ["-allocsites.c", "-allocsites.so", "-types.c", "-types.c.log.gz",
               ".i", ".i.allocs", ".makelog", ".o", ".o.fixuplog", ".objallocs",
               ".s", ".srcallocs", ".srcallocs.rej"]
 
+def runWithEnv(cmd, env = {}):
+    assigns = ["%s='%s'" % (e, env[e]) for e in env]
+    print(" ".join(assigns + cmd))
+    wholeEnv = dict(os.environ)
+    wholeEnv.update(env)
+    proc = subprocess.Popen(cmd, env = wholeEnv)
+    return proc.wait()
+
 class Test:
     def run(self):
         self.clean()
 
-        print(" ".join(self.buildCmd()))
-        status = subprocess.call(self.buildCmd())
+        status = runWithEnv(self.getBuildCmd(), self.getBuildEnv())
         if status != 0:
             return status
 
-        env = self.getEnv()
-        assigns = ["%s='%s'" % (e, env[e]) for e in env]
-        print(" ".join(assigns), " ".join(self.runCmd()))
-        wholeEnv = dict(os.environ)
-        for e in env:
-            wholeEnv[e] = env[e]
-        proc = subprocess.Popen(self.runCmd(), env = wholeEnv)
-        return proc.wait()
+        return runWithEnv(self.getRunCmd(), self.getRunEnv())
 
     def cleanFiles(self):
         return []
 
-    def getEnv(self):
+    def getBuildEnv(self):
+        return {}
+
+    def getRunEnv(self):
         return {}
 
     def clean(self):
@@ -56,9 +59,11 @@ class Test:
                 os.unlink(f)
 
 class AllocsTest(Test):
-    def __init__(self, fname):
+    def __init__(self, fname, buildEnv = {}, runEnv = {}):
         self.src_fname = fname
         self.out_fname = path.splitext(self.src_fname)[0]
+        self.buildEnv = buildEnv
+        self.runEnv = runEnv
 
     def getCompiler(self):
         return "clang_allocscc"
@@ -66,7 +71,7 @@ class AllocsTest(Test):
     def getName(self):
         return self.out_fname
 
-    def buildCmd(self):
+    def getBuildCmd(self):
         cmd = [self.getCompiler()]
         cmd += ["-g3", "-gstrict-dwarf", "-std=c99",
                 "-fno-eliminate-unused-debug-types",
@@ -76,12 +81,15 @@ class AllocsTest(Test):
                 "-o", self.out_fname]
         return cmd
 
-    def getEnv(self):
-        liballocs = path.join(LIBALLOCS_BASE, "lib/liballocs_preload.so")
-        env = {"LD_PRELOAD": path.realpath(liballocs)}
-        return env
+    def getBuildEnv(self):
+        return self.buildEnv
 
-    def runCmd(self):
+    def getRunEnv(self):
+        liballocs = path.join(LIBALLOCS_BASE, "lib/liballocs_preload.so")
+        self.runEnv["LD_PRELOAD"] = path.realpath(liballocs)
+        return self.runEnv
+
+    def getRunCmd(self):
         return ["./" + self.out_fname]
 
     def getCleanFiles(self):
@@ -110,7 +118,7 @@ class CrunchTest(AllocsTest):
     def getCompiler(self):
         return "clang_crunchcc"
 
-    def buildCmd(self):
+    def getBuildCmd(self):
         cmd = [self.getCompiler()]
         cmd += ["-D_GNU_SOURCE", "-g3", "-gstrict-dwarf", "-std=c99",
                 "-fno-eliminate-unused-debug-types", "-DUSE_STARTUP_BRK",
@@ -121,10 +129,10 @@ class CrunchTest(AllocsTest):
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
-    def getEnv(self):
+    def getRunEnv(self):
         liballocs = path.join(LIBCRUNCH_BASE, "lib/libcrunch_preload.so")
-        env = {"LD_PRELOAD": path.realpath(liballocs)}
-        return env
+        self.runEnv["LD_PRELOAD"] = path.realpath(liballocs)
+        return self.runEnv
 
 class StockCrunchTest(CrunchTest):
     def getCompiler(self):
@@ -147,15 +155,17 @@ def register_tests():
         add(AllocsTest(t))
         add(StockAllocsTest(t))
 
-    def addCrunchTest(t):
-        add(CrunchTest(t))
-        add(StockCrunchTest(t))
+    def addCrunchTest(t, buildEnv = {}, runEnv = {}):
+        add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv))
+        add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv))
 
     addAllocsTest("allocs/offsetof_composite.c")
     addAllocsTest("allocs/offsetof_simple.c")
     addAllocsTest("allocs/simple.c")
 
     addCrunchTest("crunch/hello_heap.c")
+    addCrunchTest("crunch/hello_funptr.c",
+                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
 
     return tests
 
