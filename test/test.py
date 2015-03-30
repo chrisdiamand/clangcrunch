@@ -124,6 +124,7 @@ class CrunchTest(AllocsTest):
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
         cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK", "-O2"]
+        cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
