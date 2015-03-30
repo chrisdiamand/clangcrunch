@@ -3,14 +3,12 @@
 
 int is_a(void *obj, const char *typestr);
 
-struct foo
-{
+struct foo {
     int a;
     double b;
 } blah[42];
 
-int main(void)
-{
+int main(void) {
     // No check done here as casts to 'void *' are ignored.
     void *fake1 = &blah[41];
 
