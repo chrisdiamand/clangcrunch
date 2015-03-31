@@ -54,7 +54,6 @@ class Test:
 
     def clean(self):
         for f in self.getCleanFiles():
-            print(f)
             if path.exists(f):
                 os.unlink(f)
 
