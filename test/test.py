@@ -26,6 +26,8 @@ CLEAN_EXTS = ["-allocsites.c", "-allocsites.so", "-types.c", "-types.c.log.gz",
               ".i", ".i.allocs", ".makelog", ".o", ".o.fixuplog", ".objallocs",
               ".s", ".srcallocs", ".srcallocs.rej"]
 
+DEFAULT_SUMMARY_VALUE = 0
+
 def runWithEnv(cmd, env = {}):
     assigns = ["%s='%s'" % (e, env[e]) for e in env]
     print(" ".join(assigns + cmd))
@@ -89,7 +91,6 @@ def parseSummary(output):
     ret = {}
     for l in lines:
         ret.update(parseSummaryLine(l.strip()))
-    print(ret)
     return ret
 
 class Test:
@@ -101,8 +102,31 @@ class Test:
             return cmdout[0]
 
         cmdout = runWithEnv(self.getRunCmd(), self.getRunEnv())
-        parseSummary(cmdout[2])
+        self.actualSummary = parseSummary(cmdout[2])
         return cmdout[0]
+
+    def checkSummary(self):
+        passed = True
+        for key in self.correctSummary:
+            if key not in self.actualSummary:
+                print("Error: Summary value %s not reported, should be %d" %
+                        (key, self.correctSummary[key]))
+                passed = False
+                continue
+            if self.correctSummary[key] != self.actualSummary[key]:
+                print("Error: Summary value %s should be '%s', got '%s'" %
+                      (key, self.correctSummary[key], self.actualSummary[key]))
+                passed = False
+
+        # Everything else should be zero
+        for key in self.actualSummary:
+            if key not in self.correctSummary:
+                if self.actualSummary[key] != DEFAULT_SUMMARY_VALUE:
+                    print("Error: Summary value %s should be '%s', got '%s'" %
+                          (key, DEFAULT_SUMMARY_VALUE,
+                           self.actualSummary[key]))
+                    passed = False
+        return passed
 
     def getCleanFiles(self):
         return []
@@ -120,7 +144,7 @@ class Test:
 
 class AllocsTest(Test):
     def __init__(self, fname, buildEnv = {}, runEnv = {},
-                 fail = False, flags = []):
+                 fail = False, flags = [], summary = {}):
         self.testName = path.splitext(fname)[0]
         self.src_fname = path.realpath(path.join(TESTDIR, fname))
         self.out_fname = path.splitext(self.src_fname)[0]
@@ -128,6 +152,7 @@ class AllocsTest(Test):
         self.runEnv = runEnv
         self.shouldFail = fail
         self.flags = flags
+        self.correctSummary = summary
 
     def getCompiler(self):
         return "clang_allocscc"
@@ -221,19 +246,19 @@ def register_tests():
         else:
             tests[t.getName()] = t
 
-    def addAllocsTest(t):
-        add(AllocsTest(t))
-        add(StockAllocsTest(t))
+    def addAllocsTest(t, summary = {}):
+        add(AllocsTest(t, summary = summary))
+        add(StockAllocsTest(t, summary = summary))
 
     def addCrunchTest(t, buildEnv = {}, runEnv = {},
-                      fail = False, flags = []):
+                      fail = False, flags = [], summary = {}):
         add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                       fail = fail, flags = flags))
+                       fail = fail, flags = flags, summary = summary))
         add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            fail = fail, flags = flags))
+                            fail = fail, flags = flags, summary = summary))
 
     addAllocsTest("allocs/offsetof_composite.c")
-    addAllocsTest("allocs/offsetof_simple.c")
+    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
     addAllocsTest("allocs/simple.c")
 
     addCrunchTest("crunch/array.c")
@@ -290,29 +315,36 @@ def main():
 
     nonexist = 0
     passed = 0
-    failed = 0
+    failed_returncode = 0
+    failed_summary = 0
     failedTests = []
     total = len(testNames)
 
     for tn in testNames:
         if tn in tests:
-            if tests[tn].run() != 0:
-                failed += 1
+            T = tests[tn]
+            if T.run() != 0:
+                failed_returncode += 1
                 failedTests += [tn]
             else:
-                passed += 1
+                if not T.checkSummary():
+                    failed_summary += 1
+                    failedTests += [tn]
+                else:
+                    passed += 1
         else:
             print("Error: No such test: \'" + tn + "\'")
             nonexist += 1
 
     print()
     print("Summary:")
-    print("    Passed :", passed)
-    print("    Failed :", failed)
-    print("    Invalid:", nonexist)
-    print("    Total  :", total)
+    print("    Passed              :", passed)
+    print("    Failed (returncode) :", failed_returncode)
+    print("    Failed (summary)    :", failed_summary)
+    print("    Invalid             :", nonexist)
+    print("    Total               :", total)
 
-    if failed > 0:
+    if failed_returncode + failed_summary > 0:
         print("Failed tests:", " ".join(failedTests))
 
 if __name__ == "__main__":
