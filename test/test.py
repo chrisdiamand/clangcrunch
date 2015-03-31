@@ -177,13 +177,16 @@ def register_tests():
     addAllocsTest("allocs/simple.c")
 
     addCrunchTest("crunch/array.c")
-    addCrunchTest("crunch/fail_funptr.c", fail = True)
     addCrunchTest("crunch/function_refines.c")
     addCrunchTest("crunch/funptr.c",
                   buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
     addCrunchTest("crunch/heap.c")
     addCrunchTest("crunch/indirect.c", flags = ["-O0"])
     addCrunchTest("crunch/qualified_char.c")
+    addCrunchTest("crunch/fail/funptr.c", fail = True)
+    addCrunchTest("crunch/fail/va_arg.c", fail = True)
+    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True)
+    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True)
 
     return tests
 

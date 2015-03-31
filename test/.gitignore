@@ -1,6 +1,7 @@
 *
 !allocs
 !crunch
+!crunch/fail
 
 !*.c
 *.allocstubs.c
