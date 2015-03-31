@@ -257,21 +257,42 @@ def register_tests():
         add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
                             fail = fail, flags = flags, summary = summary))
 
-    addAllocsTest("allocs/offsetof_composite.c")
+    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
     addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/simple.c")
+    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
 
-    addCrunchTest("crunch/array.c")
-    addCrunchTest("crunch/function_refines.c")
+    addCrunchTest("crunch/array.c",
+                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
+                             "a.static": 2})
+    addCrunchTest("crunch/function_refines.c",
+                  summary = {"c.remaining": 1, "c.nontriv": 1, "a.static": 1,
+                             "c.begun": 1})
     addCrunchTest("crunch/funptr.c",
-                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"})
-    addCrunchTest("crunch/heap.c")
-    addCrunchTest("crunch/indirect.c", flags = ["-O0"])
-    addCrunchTest("crunch/qualified_char.c")
-    addCrunchTest("crunch/fail/funptr.c", fail = True)
-    addCrunchTest("crunch/fail/va_arg.c", fail = True)
-    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True)
-    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True)
+                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
+                  summary = {"c.begun": 2, "c.remaining": 1, "a.static": 1,
+                  "a.abort_stack": 1, "a.abort_storage": 1, "a.stack": 1})
+    addCrunchTest("crunch/heap.c",
+                  summary = {"a.heap": 1, "c.nontriv": 2, "c.remaining": 2,
+                             "c.hit_cache": 1, "c.begun": 2})
+    addCrunchTest("crunch/indirect.c", flags = ["-O0"],
+                  summary = {"c.begun": 10, "c.nontriv": 10, "a.heap": 5,
+                             "c.hit_cache": 5, "c.remaining": 10})
+    addCrunchTest("crunch/qualified_char.c", summary = {})
+    addCrunchTest("crunch/fail/funptr.c", fail = True,
+                  summary = {"c.remaining": 1, "a.static": 1, "c.begun": 1,
+                             "c.failed_other": 1})
+    addCrunchTest("crunch/fail/va_arg.c", fail = True,
+                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
+                             "a.abort_stack": 3})
+
+    # These two seem to give different results sometimes (even with stock).
+    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True,
+                  summary = {"a.abort_stack": 4, "a.stack": 4, "c.begun": 4,
+                             "c.remaining": 4})
+    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True,
+                  buildEnv = {"LIBCRUNCH_STRICT_GENERIC_POINTERS": "1"},
+                  summary = {"c.begun": 2, "a.stack": 2, "c.remaining": 2,
+                             "c.nontriv": 0, "a.abort_stack": 2})
 
     return tests
 
