@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+    #define _GNU_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -12,14 +16,14 @@ struct sockaddr test_sockaddr;
 
 int main(void)
 {
-	struct sockaddr_in *p_mysock = malloc(sizeof (struct sockaddr));
-	
-	fprintf(stderr, "Allocated a sockaddr_in at %p\n", p_mysock);
-	
-	const void *sockaddr_type = dlsym(RTLD_DEFAULT, "__uniqtype__sockaddr");
-	assert(sockaddr_type);
-	
-	assert(__like_aU(p_mysock, sockaddr_type));
+    struct sockaddr_in *p_mysock = malloc(sizeof (struct sockaddr));
 
-	return 0;
+    fprintf(stderr, "Allocated a sockaddr_in at %p\n", p_mysock);
+
+    const void *sockaddr_type = dlsym(RTLD_DEFAULT, "__uniqtype__sockaddr");
+    assert(sockaddr_type);
+
+    assert(__like_aU(p_mysock, sockaddr_type));
+
+    return 0;
 }
