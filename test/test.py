@@ -397,9 +397,14 @@ def parseArgs(allTests):
     # For each argument, add every test that is a prefix match of that
     # argument.
     for arg in argv:
+        numMatched = 0
         for tn in allTests:
             if tn.startswith(arg):
                 ret.add(tn)
+                numMatched += 1
+        if numMatched == 0:
+            print("Error: No tests match '%s'." % arg)
+            return {}
     return ret
 
 def boxMessage(msg):
@@ -420,12 +425,16 @@ def main():
     if "CLEAN" in sys.argv:
         for t in tests:
             tests[t].clean()
-        for f in os.listdir(TESTDIR):
-            fullpath = path.join(TESTDIR, f)
-            print(fullpath)
-            for e in CLEAN_EXTS:
-                if fullpath.endswith(e) and path.exists(fullpath):
-                    os.unlink(fullpath)
+        def cleanDir(directory):
+            for f in os.listdir(directory):
+                fullpath = path.join(directory, f)
+                if path.isdir(fullpath):
+                    cleanDir(fullpath)
+                    continue
+                for e in CLEAN_EXTS:
+                    if fullpath.endswith(e) and path.exists(fullpath):
+                        os.unlink(fullpath)
+        cleanDir(TESTDIR)
         return 0
 
     testsToRun = parseArgs(tests)
