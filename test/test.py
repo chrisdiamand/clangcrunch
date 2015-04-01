@@ -367,7 +367,7 @@ def register_tests():
     return tests
 
 def zshcomp(tests, prefix = ""):
-    tests = list(tests) + ["ALL", "CLEAN"]
+    tests = list(tests) + ["ALL", "ALLclang", "CLEAN"]
     tests.sort()
     for t in tests:
         print(prefix, t)
@@ -389,6 +389,10 @@ def parseArgs(allTests):
     if "ALL" in argv:
         for tn in allTests:
             if not tn.startswith("broken/"):
+                ret.add(tn)
+    if "ALLclang" in argv:
+        for tn in allTests:
+            if not tn.startswith("broken/") and not tn.startswith("stock/"):
                 ret.add(tn)
 
     # For each argument, add every test that is a prefix match of that
