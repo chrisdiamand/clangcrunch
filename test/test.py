@@ -93,13 +93,12 @@ def parseSummary(output):
     return ret
 
 class Test:
-    def run(self):
+    def build(self):
         self.clean()
-
         cmdout = runWithEnv(self.getBuildCmd(), self.getBuildEnv())
-        if cmdout[0] != 0: # Return status
-            return cmdout[0]
+        return cmdout[0]
 
+    def run(self):
         cmdout = runWithEnv(self.getRunCmd(), self.getRunEnv())
         self.actualSummary = parseSummary(cmdout[2])
         return cmdout[0]
@@ -403,6 +402,14 @@ def parseArgs(allTests):
                 ret.add(tn)
     return ret
 
+def boxMessage(msg):
+    assert type(msg) == str
+
+    width = len(msg) + 2
+    print("+" + width * "-" + "+")
+    print("| " + msg + " |")
+    print("+" + width * "-" + "+")
+
 def main():
     tests = register_tests()
 
@@ -425,37 +432,51 @@ def main():
 
     nonexist = 0
     passed = 0
-    failed_returncode = 0
-    failed_summary = 0
-    failedTests = []
+    cancelled = 0
+    failed_build = []
+    failed_returncode = []
+    failed_summary = []
     total = len(testsToRun)
 
-    for tn in testsToRun:
-        if tn in tests:
+    try:
+        for tn in testsToRun:
+            if tn not in tests:
+                print("Error: No such test: \'" + tn + "\'")
+                nonexist += 1
+                continue
             T = tests[tn]
+            if T.build() != 0:
+                failed_build += [tn]
+                continue
             if T.run() != 0:
-                failed_returncode += 1
-                failedTests += [tn]
-            else:
-                if not T.checkSummary():
-                    failed_summary += 1
-                    failedTests += [tn]
-                else:
-                    passed += 1
-        else:
-            print("Error: No such test: \'" + tn + "\'")
-            nonexist += 1
+                failed_returncode += [tn]
+                continue
+            if not T.checkSummary():
+                failed_summary += [tn]
+                continue
+            boxMessage("Passed test '" + tn + "'")
+            print("\n")
+
+            passed += 1
+    except KeyboardInterrupt:
+        cancelled = total - passed \
+                  - len(failed_build) \
+                  - len(failed_returncode) \
+                  - len(failed_summary)
+        pass
 
     print()
     print("Summary:")
     print("    Passed              :", passed)
-    print("    Failed (returncode) :", failed_returncode)
-    print("    Failed (summary)    :", failed_summary)
+    print("    Failed (build)      :", len(failed_build),
+          " ".join(failed_build))
+    print("    Failed (returncode) :", len(failed_returncode),
+          " ".join(failed_returncode))
+    print("    Failed (summary)    :", len(failed_summary),
+          " ".join(failed_summary))
     print("    Invalid             :", nonexist)
+    print("    Cancelled           :", cancelled)
     print("    Total               :", total)
-
-    if failed_returncode + failed_summary > 0:
-        print("Failed tests:", " ".join(failedTests))
 
 if __name__ == "__main__":
     main()
