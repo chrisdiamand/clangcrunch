@@ -403,10 +403,13 @@ def parseArgs(allTests):
         for tn in allTests:
             if not tn.startswith("broken/"):
                 ret.add(tn)
+        argv.remove("ALL")
+
     if "ALLclang" in argv:
         for tn in allTests:
             if not tn.startswith("broken/") and not tn.startswith("stock/"):
                 ret.add(tn)
+        argv.remove("ALLclang")
 
     # For each argument, add every test that is a prefix match of that
     # argument.
