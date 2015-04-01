@@ -302,8 +302,9 @@ def register_tests():
                              "c.nontriv": 1, "a.heap": 2})
 
     addCrunchTest("crunch/random.c",
-                  summary = {"c.begun": 1003, "a.heap": 1003,
-                             "c.remaining": 1003})
+                  summary = {"c.begun": 1003, "a.heap": 339,
+                             "c.remaining": 1003, "c.failed_other": 334,
+                             "c.nontriv": 669, "c.hit_cache": 997})
 
     addCrunchTest("crunch/sizeofness.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.hit_cache": 1,

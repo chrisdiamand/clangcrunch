@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+    #define _GNU_SOURCE
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -17,7 +21,6 @@ int main(void) {
     spin_length = atoi(envvar ?: "0");
     if (spin_length == 0UL)
         spin_length = 1000;
-
     /* Base type HACKs... */
     struct bases {
         char                    s;
@@ -58,4 +61,5 @@ int main(void) {
         for (unsigned long u = 0UL; u < spin_length/2; ++u)
             ;
     }
+    return 0;
 }
