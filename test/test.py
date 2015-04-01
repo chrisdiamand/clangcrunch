@@ -310,10 +310,6 @@ def register_tests():
                   summary = {"c.begun": 2, "c.remaining": 2, "c.hit_cache": 1,
                              "a.heap": 1, "c.nontriv": 2})
 
-    addCrunchTest("crunch/stack.c",
-                  summary = {"c.begun": 2, "a.stack": 2, "a.abort_stack": 2,
-                             "c.remaining": 2})
-
     addCrunchTest("crunch/static.c",
                   summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
                              "a.static": 1})
@@ -363,6 +359,10 @@ def register_tests():
                   buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
                   summary = {"c.begun": 2, "c.remaining": 1, "c.nontriv": 1,
                   "a.static": 1, "a.abort_storage": 1, "a.stack": 1})
+
+    addCrunchTest("broken/crunch/stack.c",
+                  summary = {"c.begun": 2, "a.stack": 2, "c.nontriv": 2,
+                             "c.remaining": 2})
 
     return tests
 
