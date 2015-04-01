@@ -34,7 +34,8 @@ def runWithEnv(cmd, env = {}):
     wholeEnv = dict(os.environ)
     wholeEnv.update(env)
     proc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
-                            stderr =  subprocess.PIPE, env = wholeEnv)
+                            stderr =  subprocess.PIPE, env = wholeEnv,
+                            cwd = TESTDIR)
     (stdout, stderr) = proc.communicate()
     returncode = proc.wait()
 
@@ -218,7 +219,10 @@ class CrunchTest(AllocsTest):
         cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
         cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
         cmd += self.flags
-        cmd += [self.src_fname, "-o", self.out_fname]
+        # CrunchCC has a bug where the allocsites can get lost if the source
+        # filename is an absolute path. Make it relative to TESTDIR.
+        src = path.relpath(self.src_fname, TESTDIR)
+        cmd += [src, "-o", self.out_fname]
         return cmd
 
     def getRunEnv(self):
@@ -228,6 +232,15 @@ class CrunchTest(AllocsTest):
 
 class StockCrunchTest(CrunchTest):
     def getBuildCmd(self):
+        if False:
+            cmd = [self.getCompiler()]
+            cmd += ["-D_GNU_SOURCE", "-g3", "-gstrict-dwarf", "-std=c99"]
+            cmd += ["-fno-eliminate-unused-debug-types"]
+            cmd += ["-O2", "-DUSE_STARTUP_BRK"]
+            cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
+            cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
+            cmd += self.flags
+            cmd += [self.src_fname, "-o", self.out_fname]
         cmd = CrunchTest.getBuildCmd(self)
         cmd = [cmd[0], "-gstrict-dwarf"] + cmd[1:]
         return cmd
