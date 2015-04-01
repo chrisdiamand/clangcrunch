@@ -41,13 +41,12 @@ def runWithEnv(cmd, env = {}):
     stdout = stdout.decode()
     stderr = stderr.decode()
 
-    if returncode != 0:
-        print("Command exited with status", returncode, ":")
-        print("   ", " ".join(assigns + cmd))
-        print("stdout:")
-        print(stdout)
-        print("\nstderr:")
-        print(stderr)
+    print("Command exited with status", returncode, ":")
+    print("   ", " ".join(assigns + cmd))
+    print("stdout:")
+    print(stdout)
+    print("\nstderr:")
+    print(stderr)
 
     return (returncode, stdout, stderr)
 
@@ -215,6 +214,7 @@ class CrunchTest(AllocsTest):
         cmd = [self.getCompiler()]
         cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"]
         cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
+        cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
         cmd += self.flags
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
@@ -284,6 +284,35 @@ def register_tests():
     addCrunchTest("crunch/fail/va_arg.c", fail = True,
                   summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
                              "a.abort_stack": 3})
+
+    addCrunchTest("crunch/lazy_typing.c",
+                  buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
+                  runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
+                  summary = {"c.begun": 2, "c.remaining": 2,
+                             "c.lazy_heap": 2, "a.heap": 2})
+
+    addCrunchTest("crunch/like_a.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/pointer_degree.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/random.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/sizeofness.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/stack.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/static.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/stubgen.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/union.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/va_arg.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/void.c",
+                  summary = {"c.begun": 1})
+    addCrunchTest("crunch/voidptrptr.c",
+                  summary = {"c.begun": 1})
 
     # These two seem to give different results sometimes (even with stock).
     addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True,
