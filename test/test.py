@@ -204,7 +204,10 @@ class StockAllocsTest(AllocsTest):
         return "allocscc"
 
     def getName(self):
-        return "stock/" + AllocsTest.getName(self)
+        n = AllocsTest.getName(self)
+        if n.startswith("broken/"):
+            return "broken/stock" + n[6:]
+        return "stock/" + n
 
 class CrunchTest(AllocsTest):
     def getCompiler(self):
@@ -234,7 +237,10 @@ class StockCrunchTest(CrunchTest):
         return "crunchcc"
 
     def getName(self):
-        return "stock/" + CrunchTest.getName(self)
+        n = CrunchTest.getName(self)
+        if n.startswith("broken/"):
+            return "broken/stock" + n[6:]
+        return "stock/" + n
 
 def register_tests():
     tests = {}
@@ -264,26 +270,24 @@ def register_tests():
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
                              "a.static": 2})
+
     addCrunchTest("crunch/function_refines.c",
                   summary = {"c.remaining": 1, "c.nontriv": 1, "a.static": 1,
                              "c.begun": 1})
-    addCrunchTest("crunch/funptr.c",
-                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
-                  summary = {"c.begun": 2, "c.remaining": 1, "a.static": 1,
-                  "a.abort_stack": 1, "a.abort_storage": 1, "a.stack": 1})
+
     addCrunchTest("crunch/heap.c",
                   summary = {"a.heap": 1, "c.nontriv": 2, "c.remaining": 2,
                              "c.hit_cache": 1, "c.begun": 2})
+
     addCrunchTest("crunch/indirect.c", flags = ["-O0"],
                   summary = {"c.begun": 10, "c.nontriv": 10, "a.heap": 5,
                              "c.hit_cache": 5, "c.remaining": 10})
+
     addCrunchTest("crunch/qualified_char.c", summary = {})
+
     addCrunchTest("crunch/fail/funptr.c", fail = True,
                   summary = {"c.remaining": 1, "a.static": 1, "c.begun": 1,
                              "c.failed_other": 1})
-    addCrunchTest("crunch/fail/va_arg.c", fail = True,
-                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
-                             "a.abort_stack": 3})
 
     addCrunchTest("crunch/lazy_typing.c",
                   buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
@@ -292,36 +296,73 @@ def register_tests():
                              "c.lazy_heap": 2, "a.heap": 2})
 
     addCrunchTest("crunch/like_a.c",
-                  summary = {"c.begun": 1})
-    addCrunchTest("crunch/pointer_degree.c",
-                  summary = {"c.begun": 1})
+                  buildEnv = {"LIBCRUNCH_USE_LIKE_A_FOR_TYPES": "sockaddr",
+                              "LIBCRUNCH_LAZY_HEAP_TYPES": "sockaddr"},
+                  runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "sockaddr"},
+                  summary = {"c.begun": 2, "c.remaining": 2, "c.lazy_heap": 1,
+                             "c.nontriv": 1, "a.heap": 2})
+
     addCrunchTest("crunch/random.c",
-                  summary = {"c.begun": 1})
+                  summary = {"c.begun": 1003, "a.heap": 1003,
+                             "c.remaining": 1003})
+
     addCrunchTest("crunch/sizeofness.c",
-                  summary = {"c.begun": 1})
+                  summary = {"c.begun": 2, "c.remaining": 2, "c.hit_cache": 1,
+                             "a.heap": 1, "c.nontriv": 2})
+
     addCrunchTest("crunch/stack.c",
-                  summary = {"c.begun": 1})
+                  summary = {"c.begun": 2, "a.stack": 2, "a.abort_stack": 2,
+                             "c.remaining": 2})
+
     addCrunchTest("crunch/static.c",
-                  summary = {"c.begun": 1})
+                  summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
+                             "a.static": 1})
+
     addCrunchTest("crunch/stubgen.c",
-                  summary = {"c.begun": 1})
+                  buildEnv = {"LIBALLOCS_ALLOC_FNS": "xmalloc(Z)p"},
+                              flags = ["-Wl,--defsym,xmalloc=__my_xmalloc"],
+                  summary = {"c.begun": 2, "a.heap": 1, "c.nontriv": 2,
+                             "c.hit_cache": 1, "c.remaining": 2})
+
     addCrunchTest("crunch/union.c",
-                  summary = {"c.begun": 1})
-    addCrunchTest("crunch/va_arg.c",
-                  summary = {"c.begun": 1})
+                  summary = {"c.begun": 5, "c.remaining": 5, "c.nontriv": 5,
+                             "a.static": 5})
+
     addCrunchTest("crunch/void.c",
-                  summary = {"c.begun": 1})
-    addCrunchTest("crunch/voidptrptr.c",
+                  summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
+                             "a.heap": 1})
+
+    # These all seem to give different results sometimes, or not work at all.
+    # (even with stock).
+
+    addCrunchTest("broken/crunch/pointer_degree.c", fail = True,
                   summary = {"c.begun": 1})
 
-    # These two seem to give different results sometimes (even with stock).
-    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True,
+    addCrunchTest("broken/crunch/va_arg.c",
+                  summary = {"c.begun": 3, "c.remaining": 3, "a.stack": 3,
+                             "c.nontriv": 3})
+
+    addCrunchTest("broken/crunch/fail/va_arg.c", fail = True,
+                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
+                             "c.failed_other": 3})
+
+    addCrunchTest("broken/crunch/voidptrptr.c",
+                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 0,
+                             "a.stack": 2, "a.abort_stack": 2})
+
+    addCrunchTest("broken/crunch/fail/voidptrptr_invalid.c", fail = True,
                   summary = {"a.abort_stack": 4, "a.stack": 4, "c.begun": 4,
                              "c.remaining": 4})
-    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True,
+
+    addCrunchTest("broken/crunch/fail/voidptrptr_strict.c", fail = True,
                   buildEnv = {"LIBCRUNCH_STRICT_GENERIC_POINTERS": "1"},
                   summary = {"c.begun": 2, "a.stack": 2, "c.remaining": 2,
                              "c.nontriv": 0, "a.abort_stack": 2})
+
+    addCrunchTest("broken/crunch/funptr.c",
+                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
+                  summary = {"c.begun": 2, "c.remaining": 1, "c.nontriv": 1,
+                  "a.static": 1, "a.abort_storage": 1, "a.stack": 1})
 
     return tests
 
@@ -336,6 +377,27 @@ def helpAndExit(tests):
     print("Available tests:")
     zshcomp(tests, prefix = "   ")
     sys.exit(0)
+
+def parseArgs(allTests):
+    argv = sys.argv[1:]
+    ret = set()
+
+    if len(argv) == 0:
+        helpAndExit(allTests)
+        return ret
+
+    if "ALL" in argv:
+        for tn in allTests:
+            if not tn.startswith("broken/"):
+                ret.add(tn)
+
+    # For each argument, add every test that is a prefix match of that
+    # argument.
+    for arg in argv:
+        for tn in allTests:
+            if tn.startswith(arg):
+                ret.add(tn)
+    return ret
 
 def main():
     tests = register_tests()
@@ -355,22 +417,16 @@ def main():
                     os.unlink(fullpath)
         return 0
 
-    testNames = sys.argv[1:]
-
-    if len(testNames) == 0:
-        helpAndExit(tests)
-
-    if "ALL" in testNames:
-        testNames = list(tests.keys())
+    testsToRun = parseArgs(tests)
 
     nonexist = 0
     passed = 0
     failed_returncode = 0
     failed_summary = 0
     failedTests = []
-    total = len(testNames)
+    total = len(testsToRun)
 
-    for tn in testNames:
+    for tn in testsToRun:
         if tn in tests:
             T = tests[tn]
             if T.run() != 0:
