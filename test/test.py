@@ -337,7 +337,8 @@ def register_tests():
 
     addCrunchTest("crunch/stubgen.c",
                   buildEnv = {"LIBALLOCS_ALLOC_FNS": "xmalloc(Z)p"},
-                              flags = ["-Wl,--defsym,xmalloc=__my_xmalloc"],
+                              flags = ["-Wl,--defsym,xmalloc=__my_xmalloc",
+                                       "-O0"],
                   summary = {"c.begun": 2, "a.heap": 1, "c.nontriv": 2,
                              "c.hit_cache": 1, "c.remaining": 2})
 
