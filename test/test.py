@@ -264,9 +264,11 @@ def register_tests():
         else:
             tests[t.getName()] = t
 
-    def addAllocsTest(t, summary = {}):
-        add(AllocsTest(t, summary = summary))
-        add(StockAllocsTest(t, summary = summary))
+    def addAllocsTest(t, buildEnv = {}, runEnv = {}, summary = {}):
+        add(AllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
+                       summary = summary))
+        add(StockAllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
+                            summary = summary))
 
     def addCrunchTest(t, buildEnv = {}, runEnv = {},
                       fail = False, flags = [], summary = {}):
@@ -278,6 +280,12 @@ def register_tests():
     addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
     addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
     addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
+    multiAllocEnv = {"LIBALLOCS_ALLOC_FNS":
+                        "xmalloc(Z)p xcalloc(zZ)p xrealloc(pZ)p",
+                     "LIBALLOCS_SUBALLOC_FNS":
+                        "g_slice_alloc(Z)p g_slice_alloc0(Z)p"}
+    addAllocsTest("broken/allocs/multi_alloc.c", buildEnv = multiAllocEnv,
+                  runEnv = multiAllocEnv)
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
