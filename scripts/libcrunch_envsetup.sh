@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export SRK31_PROJECTS=`realpath $SCRIPT_DIR/../crunch`
+export SRK31_PROJECTS=`realpath $SCRIPT_DIR/../pkg`
 
 add_incl_path $SRK31_PROJECTS/libsrk31cxx/include
 add_link_path $SRK31_PROJECTS/libsrk31cxx/lib

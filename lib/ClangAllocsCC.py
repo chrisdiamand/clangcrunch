@@ -7,7 +7,7 @@ import sys
 if "LIBALLOCS_BASE" in os.environ:
     LIBALLOCS_BASE = os.environ["LIBALLOCS_BASE"]
 else:
-    LIBALLOCS_BASE = os.path.join(os.path.dirname(__file__), "../crunch/liballocs")
+    LIBALLOCS_BASE = os.path.join(os.path.dirname(__file__), "../pkg/liballocs")
 LIBALLOCS_BASE = os.path.realpath(LIBALLOCS_BASE)
 
 sys.path.append(os.path.join(LIBALLOCS_BASE, "tools"))
