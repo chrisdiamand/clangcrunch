@@ -11,7 +11,7 @@ TESTDIR = path.realpath(path.dirname(__file__))
 if "LIBALLOCS_BASE" in os.environ:
     LIBALLOCS_BASE = os.environ["LIBALLOCS_BASE"]
 else:
-    LIBALLOCS_BASE = path.join(TESTDIR, "../pkg/liballocs")
+    LIBALLOCS_BASE = path.join(TESTDIR, "../../liballocs")
 LIBALLOCS_BASE = path.realpath(LIBALLOCS_BASE)
 
 if "LIBCRUNCH_BASE" in os.environ:
