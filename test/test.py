@@ -254,6 +254,12 @@ class StockCrunchTest(CrunchTest):
             return "broken/stock" + n[6:]
         return "stock/" + n
 
+def pkg_config(pkg):
+    cmd = ["pkg-config", "--cflags", "--libs", pkg]
+    ret = subprocess.check_output(cmd)
+    ret = ret.decode()
+    return ret.split()
+
 def register_tests():
     tests = {}
     def add(t):
@@ -264,11 +270,11 @@ def register_tests():
         else:
             tests[t.getName()] = t
 
-    def addAllocsTest(t, buildEnv = {}, runEnv = {}, summary = {}):
+    def addAllocsTest(t, buildEnv = {}, runEnv = {}, flags = [], summary = {}):
         add(AllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                       summary = summary))
+                       flags = flags, summary = summary))
         add(StockAllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            summary = summary))
+                            flags = flags, summary = summary))
 
     def addCrunchTest(t, buildEnv = {}, runEnv = {},
                       fail = False, flags = [], summary = {}):
@@ -277,15 +283,24 @@ def register_tests():
         add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
                             fail = fail, flags = flags, summary = summary))
 
-    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/alloca.c", summary = {"a.stack": 1})
+
     multiAllocEnv = {"LIBALLOCS_ALLOC_FNS":
                         "xmalloc(Z)p xcalloc(zZ)p xrealloc(pZ)p",
                      "LIBALLOCS_SUBALLOC_FNS":
                         "g_slice_alloc(Z)p g_slice_alloc0(Z)p"}
-    addAllocsTest("broken/allocs/multi_alloc.c", buildEnv = multiAllocEnv,
-                  runEnv = multiAllocEnv)
+    addAllocsTest("allocs/multi_alloc.c", summary = {},
+                  flags = ["-Wl,--no-as-needed"] +
+                          pkg_config("glib-2.0") +
+                          ["-Wl,--as-needed"],
+                  buildEnv = multiAllocEnv, runEnv = multiAllocEnv)
+
+    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/sloppy_dumptypes.c", summary = {})
+    addAllocsTest("allocs/uniqtype_walk.c", flags = ["-lallocs"],
+                  summary = {"a.heap": 1})
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
