@@ -30,7 +30,7 @@ add_bin_path $LIBALLOCS/tools
 add_bin_path $LIBALLOCS/tools/lang/c/bin
 add_bin_path $LIBALLOCS/tools/lang/c++/bin
 add_python_path $LIBALLOCS/tools/lang/c/lib
-export DEBUG_CC=1
+#export DEBUG_CC=1
 
 export ANTLR_M4_PATH=$SRK31_PROJECTS/m4ntlr
 
