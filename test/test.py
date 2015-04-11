@@ -355,9 +355,6 @@ def register_tests():
                   summary = {"c.begun": 2, "c.remaining": 2, "c.lazy_heap": 1,
                              "c.nontriv": 1, "a.heap": 2})
 
-    addCrunchTest("crunch/pointer_degree.c", fail = True,
-                  summary = {"a.stack": 17})
-
     addCrunchTest("crunch/random.c",
                   summary = {"c.begun": 1003, "a.heap": 339,
                              "c.remaining": 1003, "c.failed_other": 334,
@@ -397,6 +394,9 @@ def register_tests():
     addCrunchTest("crunch/voidptrptr.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
                              "a.stack": 4})
+
+    addCrunchTest("broken/pointer_degree.c", fail = True,
+                  summary = {"a.stack": 17})
 
     return tests
 

@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+    #define _GNU_SOURCE
+#endif
+
 #include "libcrunch.h"
 
 extern unsigned long __libcrunch_failed;
