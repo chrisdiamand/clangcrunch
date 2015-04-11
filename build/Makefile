@@ -64,5 +64,12 @@ cil: $(CIL_BUILT)
 %_build:
 	$(MAKE) -C $(PROJ_ROOT)/$* DEBUG=$(DEBUG)
 
+# liballocs tests are broken, but get built by default, so specify the exact
+# targets we need individually.
+liballocs_build:
+	$(MAKE) -C $(PROJ_ROOT)/liballocs DEBUG=$(DEBUG) tools
+	$(MAKE) -C $(PROJ_ROOT)/liballocs DEBUG=$(DEBUG) src
+	$(MAKE) -C $(PROJ_ROOT)/liballocs DEBUG=$(DEBUG) lib
+
 %_clean:
 	$(MAKE) -C $(PROJ_ROOT)/$* clean DEBUG=$(DEBUG)
