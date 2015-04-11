@@ -19,4 +19,4 @@ $ cd path/to/llvm/sources
 $ ninja
 
 --- With ccache ---
-$ CXX="ccache clang++" CC="ccache clang" CCACHE_CPP2=yes cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=DEBUG ..
+$ CXX="ccache clang++ -Qunused-arguments -fcolor-diagnostics" CC="ccache clang -Qunused-arguments -fcolor-diagnostics" CCACHE_CPP2=yes cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=DEBUG
