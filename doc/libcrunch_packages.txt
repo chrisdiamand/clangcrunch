@@ -7,4 +7,6 @@ libboost-system-dev
 libc6-dev
 libdwarf-dev
 libelf-dev
+libglib2.0-dev
 ocaml-findlib
+pkg-config
