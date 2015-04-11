@@ -254,6 +254,12 @@ class StockCrunchTest(CrunchTest):
             return "broken/stock" + n[6:]
         return "stock/" + n
 
+def pkg_config(pkg):
+    cmd = ["pkg-config", "--cflags", "--libs", pkg]
+    ret = subprocess.check_output(cmd)
+    ret = ret.decode()
+    return ret.split()
+
 def register_tests():
     tests = {}
     def add(t):
@@ -264,11 +270,11 @@ def register_tests():
         else:
             tests[t.getName()] = t
 
-    def addAllocsTest(t, buildEnv = {}, runEnv = {}, summary = {}):
+    def addAllocsTest(t, buildEnv = {}, runEnv = {}, flags = [], summary = {}):
         add(AllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                       summary = summary))
+                       flags = flags, summary = summary))
         add(StockAllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            summary = summary))
+                            flags = flags, summary = summary))
 
     def addCrunchTest(t, buildEnv = {}, runEnv = {},
                       fail = False, flags = [], summary = {}):
@@ -277,15 +283,24 @@ def register_tests():
         add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
                             fail = fail, flags = flags, summary = summary))
 
-    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/alloca.c", summary = {"a.stack": 1})
+
     multiAllocEnv = {"LIBALLOCS_ALLOC_FNS":
                         "xmalloc(Z)p xcalloc(zZ)p xrealloc(pZ)p",
                      "LIBALLOCS_SUBALLOC_FNS":
                         "g_slice_alloc(Z)p g_slice_alloc0(Z)p"}
-    addAllocsTest("broken/allocs/multi_alloc.c", buildEnv = multiAllocEnv,
-                  runEnv = multiAllocEnv)
+    addAllocsTest("allocs/multi_alloc.c", summary = {},
+                  flags = ["-Wl,--no-as-needed"] +
+                          pkg_config("glib-2.0") +
+                          ["-Wl,--as-needed"],
+                  buildEnv = multiAllocEnv, runEnv = multiAllocEnv)
+
+    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
+    addAllocsTest("allocs/sloppy_dumptypes.c", summary = {})
+    addAllocsTest("allocs/uniqtype_walk.c", flags = ["-lallocs"],
+                  summary = {"a.heap": 1})
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
@@ -309,6 +324,24 @@ def register_tests():
                   summary = {"c.remaining": 1, "a.static": 1, "c.begun": 1,
                              "c.failed_other": 1})
 
+    addCrunchTest("crunch/fail/va_arg.c", fail = True,
+                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
+                             "c.failed_other": 3})
+
+    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True,
+                  summary = {"a.stack": 4, "c.begun": 4,
+                             "c.remaining": 4, "c.failed_other": 4})
+
+    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True,
+                  buildEnv = {"LIBCRUNCH_STRICT_GENERIC_POINTERS": "1"},
+                  summary = {"c.begun": 2, "a.stack": 2, "c.remaining": 2,
+                             "c.failed_other": 2})
+
+    addCrunchTest("crunch/funptr.c",
+                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
+                  summary = {"c.begun": 2, "c.remaining": 1, "c.nontriv": 1,
+                  "a.static": 1, "a.abort_storage": 1, "a.stack": 1})
+
     addCrunchTest("crunch/lazy_typing.c",
                   buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
                   runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
@@ -322,6 +355,9 @@ def register_tests():
                   summary = {"c.begun": 2, "c.remaining": 2, "c.lazy_heap": 1,
                              "c.nontriv": 1, "a.heap": 2})
 
+    addCrunchTest("crunch/pointer_degree.c", fail = True,
+                  summary = {"a.stack": 17})
+
     addCrunchTest("crunch/random.c",
                   summary = {"c.begun": 1003, "a.heap": 339,
                              "c.remaining": 1003, "c.failed_other": 334,
@@ -330,6 +366,10 @@ def register_tests():
     addCrunchTest("crunch/sizeofness.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.hit_cache": 1,
                              "a.heap": 1, "c.nontriv": 2})
+
+    addCrunchTest("crunch/stack.c",
+                  summary = {"c.begun": 2, "a.stack": 2, "c.nontriv": 2,
+                             "c.remaining": 2})
 
     addCrunchTest("crunch/static.c",
                   summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
@@ -346,45 +386,17 @@ def register_tests():
                   summary = {"c.begun": 5, "c.remaining": 5, "c.nontriv": 5,
                              "a.static": 5})
 
+    addCrunchTest("crunch/va_arg.c",
+                  summary = {"c.begun": 3, "c.remaining": 3, "a.stack": 3,
+                             "c.nontriv": 3})
+
     addCrunchTest("crunch/void.c",
                   summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
                              "a.heap": 1})
 
-    # These all seem to give different results sometimes, or not work at all.
-    # (even with stock).
-
-    addCrunchTest("broken/crunch/pointer_degree.c", fail = True,
-                  summary = {"c.begun": 1})
-
-    addCrunchTest("broken/crunch/va_arg.c",
-                  summary = {"c.begun": 3, "c.remaining": 3, "a.stack": 3,
-                             "c.nontriv": 3})
-
-    addCrunchTest("broken/crunch/fail/va_arg.c", fail = True,
-                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
-                             "c.failed_other": 3})
-
-    addCrunchTest("broken/crunch/voidptrptr.c",
-                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 0,
-                             "a.stack": 2, "a.abort_stack": 2})
-
-    addCrunchTest("broken/crunch/fail/voidptrptr_invalid.c", fail = True,
-                  summary = {"a.abort_stack": 4, "a.stack": 4, "c.begun": 4,
-                             "c.remaining": 4})
-
-    addCrunchTest("broken/crunch/fail/voidptrptr_strict.c", fail = True,
-                  buildEnv = {"LIBCRUNCH_STRICT_GENERIC_POINTERS": "1"},
-                  summary = {"c.begun": 2, "a.stack": 2, "c.remaining": 2,
-                             "c.nontriv": 0, "a.abort_stack": 2})
-
-    addCrunchTest("broken/crunch/funptr.c",
-                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
-                  summary = {"c.begun": 2, "c.remaining": 1, "c.nontriv": 1,
-                  "a.static": 1, "a.abort_storage": 1, "a.stack": 1})
-
-    addCrunchTest("broken/crunch/stack.c",
-                  summary = {"c.begun": 2, "a.stack": 2, "c.nontriv": 2,
-                             "c.remaining": 2})
+    addCrunchTest("crunch/voidptrptr.c",
+                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
+                             "a.stack": 4})
 
     return tests
 
