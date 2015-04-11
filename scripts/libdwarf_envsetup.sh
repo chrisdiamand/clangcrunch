@@ -1,4 +1,4 @@
-LIBDWARF=`realpath $SCRIPT_DIR/../crunch/dwarf-20150310`
+LIBDWARF=`crunch_realpath $SCRIPT_DIR/../crunch/dwarf-20150310`
 
 add_bin_path $LIBDWARF/dwarfdump
 add_incl_path $LIBDWARF/libdwarf
