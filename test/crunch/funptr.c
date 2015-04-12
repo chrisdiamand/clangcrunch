@@ -19,7 +19,12 @@ int main(void) {
      * type-mismatched function. However, there's no harm done, so no error. */
     int *recovered = fake_fun(&fake, &l);
 
-    printf("It says: %p\n", recovered);
+    /* Try one where the return value isn't a pointer. This should generate the
+     * argument check, but not the return value check. */
+    long (*fake_fun2)(void *, void *) = (long (*)(void*, void*)) fake;
+    long recovered2 = fake_fun2(&fake, &l);
+
+    printf("It says: %p, 0x%lx\n", recovered, recovered2);
 
     return 0;
 }

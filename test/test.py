@@ -339,8 +339,9 @@ def register_tests():
 
     addCrunchTest("crunch/funptr.c",
                   buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
-                  summary = {"c.begun": 2, "c.remaining": 1, "c.nontriv": 1,
-                  "a.static": 1, "a.abort_storage": 1, "a.stack": 1})
+                  summary = {"c.begun": 3, "c.remaining": 2, "c.nontriv": 2,
+                  "a.static": 2, "a.abort_storage": 1, "a.stack": 1,
+                  "c.hit_cache": 1})
 
     addCrunchTest("crunch/lazy_typing.c",
                   buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
