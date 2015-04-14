@@ -54,7 +54,8 @@ class ClangAllocsCC(AllocsCompilerWrapper):
         else:
             self.debugMsg("No source files, or not all (only %d) are C files\n" % len(sourceFiles))
 
-        ret = ["-g", "-fno-eliminate-unused-debug-types"]
+        ret = ["-g", "-fno-eliminate-unused-debug-types"] \
+            + self.getCustomCompileArgs(sourceFiles);
         return ret + includeArgs
 
     def getUnderlyingCompilerCommand(self, sourceFiles):
