@@ -301,6 +301,7 @@ def register_tests():
     addAllocsTest("allocs/sloppy_dumptypes.c", summary = {})
     addAllocsTest("allocs/uniqtype_walk.c", flags = ["-lallocs"],
                   summary = {"a.heap": 1})
+    addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
