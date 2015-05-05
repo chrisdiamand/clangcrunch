@@ -304,6 +304,7 @@ def register_tests():
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
+    addAllocsTest("allocs/reuse.c", summary = {"a.heap": 4})
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
