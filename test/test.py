@@ -303,6 +303,7 @@ def register_tests():
                   summary = {"a.heap": 1})
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
+    addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
