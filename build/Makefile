@@ -4,18 +4,18 @@ DEBUG ?= 1
 
 PROJ_ROOT := $(realpath ../..)
 
-SUBDIRS := \
-    $(PROJ_ROOT)/libcxxfileno \
-    $(PROJ_ROOT)/libsrk31cxx \
-    $(PROJ_ROOT)/libcxxgen \
-    $(PROJ_ROOT)/libdwarfpp \
-    $(PROJ_ROOT)/dwarfidl \
-    $(PROJ_ROOT)/liballocs \
-    $(PROJ_ROOT)/libcrunch
+PROJECTS_TO_CLEAN := \
+    libcxxfileno \
+    libsrk31cxx \
+    libcxxgen \
+    libdwarfpp \
+    dwarfidl \
+    liballocs \
+    libcrunch
 
 all: libcrunch_build
 
-clean: $(SUBDIRS:%=%_clean)
+clean: $(PROJECTS:%=%_clean)
 
 libsrk31cxx_build: libcxxfileno_build
 
