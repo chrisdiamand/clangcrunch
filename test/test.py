@@ -254,26 +254,31 @@ class StockCrunchTest(CrunchTest):
             return "broken/stock" + n[6:]
         return "stock/" + n
 
-class SectionGroupTest(AllocsTest):
-    def __init__(self):
-        AllocsTest.__init__(self, "allocs/section_group/section_group.c")
+class CrunchMakefileTest(CrunchTest):
+    def __init__(self, directory, summary = {}):
+        self.directory = directory
+        self.out_fname = path.join(directory, path.basename(directory))
+        AllocsTest.__init__(self, self.out_fname + ".c", summary = summary)
 
     def getBuildCmd(self):
-        cmd = ["make", "-C", path.join(TESTDIR, "allocs/section_group")]
+        cmd = ["make", "-C", path.join(TESTDIR, self.directory)]
         return cmd
 
     def getBuildEnv(self):
-        return {"CC": "clang_allocscc"}
+        return {"CC": "clang_crunchcc"}
 
     def getName(self):
-        return "allocs/section_group"
+        return self.directory
 
-class StockSectionGroupTest(SectionGroupTest):
+    def getCleanFiles(self):
+        return []
+
+class StockCrunchMakefileTest(CrunchMakefileTest):
     def getBuildEnv(self):
-        return {"CC": "allocscc"}
+        return {"CC": "crunchcc"}
 
     def getName(self):
-        return "stock/" + SectionGroupTest.getName(self)
+        return "stock/" + CrunchMakefileTest.getName(self)
 
 def pkg_config(pkg):
     cmd = ["pkg-config", "--cflags", "--libs", pkg]
@@ -328,8 +333,13 @@ def register_tests():
     addAllocsTest("allocs/reuse.c", summary = {"a.heap": 4})
     addAllocsTest("allocs/relf_auxv_dynamic.c", flags = ["-ldl"])
 
-    #add(SectionGroupTest())
-    #add(StockSectionGroupTest())
+    summ = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
+    add(CrunchMakefileTest("crunch/section_group", summary = summ))
+    add(StockCrunchMakefileTest("crunch/section_group", summary = summ))
+
+    summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
+    add(CrunchMakefileTest("crunch/incomplete", summary = summ))
+    add(StockCrunchMakefileTest("crunch/incomplete", summary = summ))
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
@@ -374,6 +384,8 @@ def register_tests():
 
     addCrunchTest("crunch/hello.c")
 
+    addCrunchTest("crunch/hello_errno.c")
+
     addCrunchTest("crunch/lazy_typing.c",
                   buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
                   runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
@@ -399,6 +411,10 @@ def register_tests():
     addCrunchTest("crunch/stack.c",
                   summary = {"c.begun": 2, "a.stack": 2, "c.nontriv": 2,
                              "c.remaining": 2})
+
+    addCrunchTest("crunch/stackactual.c",
+                  summary = {"c.begun": 1, "a.stack": 1, "c.nontriv": 1,
+                             "c.remaining": 1})
 
     addCrunchTest("crunch/static.c",
                   summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
