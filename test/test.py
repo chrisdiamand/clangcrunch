@@ -372,6 +372,8 @@ def register_tests():
                   "a.static": 2, "a.abort_storage": 1, "a.stack": 1,
                   "c.hit_cache": 1})
 
+    addCrunchTest("crunch/hello.c")
+
     addCrunchTest("crunch/lazy_typing.c",
                   buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
                   runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
