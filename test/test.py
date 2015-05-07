@@ -254,6 +254,27 @@ class StockCrunchTest(CrunchTest):
             return "broken/stock" + n[6:]
         return "stock/" + n
 
+class SectionGroupTest(AllocsTest):
+    def __init__(self):
+        AllocsTest.__init__(self, "allocs/section_group/section_group.c")
+
+    def getBuildCmd(self):
+        cmd = ["make", "-C", path.join(TESTDIR, "allocs/section_group")]
+        return cmd
+
+    def getBuildEnv(self):
+        return {"CC": "clang_allocscc"}
+
+    def getName(self):
+        return "allocs/section_group"
+
+class StockSectionGroupTest(SectionGroupTest):
+    def getBuildEnv(self):
+        return {"CC": "allocscc"}
+
+    def getName(self):
+        return "stock/" + SectionGroupTest.getName(self)
+
 def pkg_config(pkg):
     cmd = ["pkg-config", "--cflags", "--libs", pkg]
     ret = subprocess.check_output(cmd)
@@ -305,6 +326,10 @@ def register_tests():
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/reuse.c", summary = {"a.heap": 4})
+    addAllocsTest("allocs/relf_auxv_dynamic.c", flags = ["-ldl"])
+
+    #add(SectionGroupTest())
+    #add(StockSectionGroupTest())
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
