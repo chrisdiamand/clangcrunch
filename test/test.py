@@ -171,8 +171,8 @@ class AllocsTest(Test):
 
     def getRunEnv(self):
         liballocs = path.join(LIBALLOCS_BASE, "lib/liballocs_preload.so")
-        self.runEnv["LD_PRELOAD"] = path.realpath(liballocs)
-        return self.runEnv
+        ld_preload = {"LD_PRELOAD": path.realpath(liballocs)}
+        return dict(self.runEnv, **ld_preload)
 
     def getRunCmd(self):
         return [self.out_fname]
@@ -227,8 +227,8 @@ class CrunchTest(AllocsTest):
 
     def getRunEnv(self):
         liballocs = path.join(LIBCRUNCH_BASE, "lib/libcrunch_preload.so")
-        self.runEnv["LD_PRELOAD"] = path.realpath(liballocs)
-        return self.runEnv
+        ld_preload = {"LD_PRELOAD": path.realpath(liballocs)}
+        return dict(self.runEnv, **ld_preload)
 
 class StockCrunchTest(CrunchTest):
     def getBuildCmd(self):
