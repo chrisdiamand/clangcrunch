@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import numpy
 from os import path
 import os
 import random
@@ -462,6 +463,8 @@ def zshcomp(tests, prefix = ""):
     tests.sort()
     for t in tests:
         print(prefix, t)
+    # HACK: To enable complete for the -rNUM option, just add them here.
+    print("-r1\n-r2\n-r3\n-r4\n-r5\n-r10")
 
 def helpAndExit(tests):
     print("Usage: %s TEST ..." % sys.argv[0])
@@ -517,12 +520,40 @@ def boxMessage(msg):
 
 class Timings:
     def __init__(self):
-        self.times = {}
+        self.stockTimes = {}
+        self.newTimes = {}
+        self.allNames = set()
 
     def add(self, name, time):
-        if name not in self.times:
-            self.times[name] = []
-        self.times[name] = time
+        if name.startswith("stock/"):
+            addTo = self.stockTimes
+            name = name[6:]
+        else:
+            addTo = self.newTimes
+
+        if name not in addTo:
+            addTo[name] = []
+        addTo[name].append(time)
+        self.allNames.add(name)
+
+    def writeSingle(self, fp, tn):
+        stockMean = 0.0
+        newMean = 0.0
+
+        if tn in self.stockTimes:
+            stockMean = numpy.mean(self.stockTimes[tn])
+        if tn in self.newTimes:
+            newMean = numpy.mean(self.newTimes[tn])
+
+        fp.write(tn + "\t" + str(stockMean) + "\t" + str(newMean) + "\n")
+
+    def write(self, fname):
+        with open(fname, "w") as fp:
+            fp.write("TestName\tStock\tNew\n")
+            allNames = list(self.allNames)
+            allNames.sort()
+            for tn in allNames:
+                self.writeSingle(fp, tn)
 
 def runTestList(tests, testsToRun, buildTimes, runTimes):
     nonexist = 0
@@ -611,6 +642,9 @@ def main():
     random.shuffle(testsToRun)
 
     runTestList(tests, testsToRun, buildTimes, runTimes)
+
+    buildTimes.write(path.join(TESTDIR, "buildTimes.dat"))
+    runTimes.write(path.join(TESTDIR, "runTimes.dat"))
 
 
 if __name__ == "__main__":
