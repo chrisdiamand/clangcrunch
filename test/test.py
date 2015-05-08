@@ -2,9 +2,11 @@
 
 from os import path
 import os
+import random
 import re
 import subprocess
 import sys
+import time
 
 TESTDIR = path.realpath(path.dirname(__file__))
 
@@ -33,11 +35,16 @@ def runWithEnv(cmd, env = {}):
     print(" ".join(assigns + cmd))
     wholeEnv = dict(os.environ)
     wholeEnv.update(env)
+
+    startTime = time.time()
+
     proc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
                             stderr =  subprocess.PIPE, env = wholeEnv,
                             cwd = TESTDIR)
     (stdout, stderr) = proc.communicate()
     returncode = proc.wait()
+
+    elapsedTime = time.time() - startTime
 
     stdout = stdout.decode()
     stderr = stderr.decode()
@@ -49,7 +56,7 @@ def runWithEnv(cmd, env = {}):
     print("\nstderr:")
     print(stderr)
 
-    return (returncode, stdout, stderr)
+    return (returncode, stdout, stderr, elapsedTime)
 
 def parseSummaryLine(line):
     found = False
@@ -97,10 +104,12 @@ class Test:
     def build(self):
         self.clean()
         cmdout = runWithEnv(self.getBuildCmd(), self.getBuildEnv())
+        self.buildTime = cmdout[3]
         return cmdout[0]
 
     def run(self):
         cmdout = runWithEnv(self.getRunCmd(), self.getRunEnv())
+        self.runTime = cmdout[3]
         self.actualSummary = parseSummary(cmdout[2])
         return cmdout[0]
 
@@ -463,6 +472,7 @@ def helpAndExit(tests):
 def parseArgs(allTests):
     argv = sys.argv[1:]
     ret = set()
+    numRepeats = 1
 
     if len(argv) == 0:
         helpAndExit(allTests)
@@ -483,6 +493,10 @@ def parseArgs(allTests):
     # For each argument, add every test that is a prefix match of that
     # argument.
     for arg in argv:
+        if arg.startswith("-r"):
+            numRepeats = int(arg[2:])
+            continue
+
         numMatched = 0
         for tn in allTests:
             if tn.startswith(arg):
@@ -491,7 +505,7 @@ def parseArgs(allTests):
         if numMatched == 0:
             print("Error: No tests match '%s'." % arg)
             return {}
-    return ret
+    return [ret, numRepeats]
 
 def boxMessage(msg):
     assert type(msg) == str
@@ -501,30 +515,16 @@ def boxMessage(msg):
     print("| " + msg + " |")
     print("+" + width * "-" + "+")
 
-def main():
-    tests = register_tests()
+class Timings:
+    def __init__(self):
+        self.times = {}
 
-    if "ZSHCOMP" in sys.argv:
-        zshcomp(tests)
-        sys.exit(0)
+    def add(self, name, time):
+        if name not in self.times:
+            self.times[name] = []
+        self.times[name] = time
 
-    if "CLEAN" in sys.argv:
-        for t in tests:
-            tests[t].clean()
-        def cleanDir(directory):
-            for f in os.listdir(directory):
-                fullpath = path.join(directory, f)
-                if path.isdir(fullpath):
-                    cleanDir(fullpath)
-                    continue
-                for e in CLEAN_EXTS:
-                    if fullpath.endswith(e) and path.exists(fullpath):
-                        os.unlink(fullpath)
-        cleanDir(TESTDIR)
-        return 0
-
-    testsToRun = parseArgs(tests)
-
+def runTestList(tests, testsToRun, buildTimes, runTimes):
     nonexist = 0
     passed = 0
     cancelled = 0
@@ -551,6 +551,8 @@ def main():
                 continue
             boxMessage("Passed test '" + tn + "'")
             print("\n")
+            buildTimes.add(tn, T.buildTime)
+            runTimes.add(tn, T.runTime)
 
             passed += 1
     except KeyboardInterrupt:
@@ -559,6 +561,10 @@ def main():
                   - len(failed_returncode) \
                   - len(failed_summary)
         pass
+
+    failed_build.sort()
+    failed_returncode.sort()
+    failed_summary.sort()
 
     print()
     print("Summary:")
@@ -572,6 +578,40 @@ def main():
     print("    Invalid             :", nonexist)
     print("    Cancelled           :", cancelled)
     print("    Total               :", total)
+
+def main():
+    tests = register_tests()
+
+    if "ZSHCOMP" in sys.argv:
+        zshcomp(tests)
+        sys.exit(0)
+
+    if "CLEAN" in sys.argv:
+        for t in tests:
+            tests[t].clean()
+        def cleanDir(directory):
+            for f in os.listdir(directory):
+                fullpath = path.join(directory, f)
+                if path.isdir(fullpath):
+                    cleanDir(fullpath)
+                    continue
+                for e in CLEAN_EXTS:
+                    if fullpath.endswith(e) and path.exists(fullpath):
+                        os.unlink(fullpath)
+        cleanDir(TESTDIR)
+        return 0
+
+    [testsToRun, numRepeats] = parseArgs(tests)
+
+    buildTimes = Timings()
+    runTimes = Timings()
+
+    # Combine all repeats into one huge list, then shuffle it
+    testsToRun = numRepeats * list(testsToRun)
+    random.shuffle(testsToRun)
+
+    runTestList(tests, testsToRun, buildTimes, runTimes)
+
 
 if __name__ == "__main__":
     main()
