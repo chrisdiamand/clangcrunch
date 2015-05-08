@@ -479,7 +479,7 @@ def parseArgs(allTests):
 
     if len(argv) == 0:
         helpAndExit(allTests)
-        return ret
+        return [ret, 0]
 
     if "ALL" in argv:
         for tn in allTests:
@@ -507,7 +507,7 @@ def parseArgs(allTests):
                 numMatched += 1
         if numMatched == 0:
             print("Error: No tests match '%s'." % arg)
-            return {}
+            return [{}, 0]
     return [ret, numRepeats]
 
 def boxMessage(msg):
@@ -537,19 +537,24 @@ class Timings:
         self.allNames.add(name)
 
     def writeSingle(self, fp, tn):
-        stockMean = 0.0
-        newMean = 0.0
+        stockMean = None
+        newMean = None
 
         if tn in self.stockTimes:
             stockMean = numpy.mean(self.stockTimes[tn])
         if tn in self.newTimes:
             newMean = numpy.mean(self.newTimes[tn])
 
-        fp.write(tn + "\t" + str(stockMean) + "\t" + str(newMean) + "\n")
+        if tn in self.stockTimes and tn in self.newTimes:
+            stk = self.stockTimes[tn]
+            new = self.newTimes[tn]
+            fp.write(tn + "\t")
+            fp.write(str(numpy.mean(stk)) + "\t" + str(numpy.std(stk)) + "\t")
+            fp.write(str(numpy.mean(new)) + "\t" + str(numpy.std(new)) + "\n")
 
     def write(self, fname):
         with open(fname, "w") as fp:
-            fp.write("TestName\tStock\tNew\n")
+            fp.write("TestName\tStockMean\tStockSTD\tNewMean\tNewSTD\n")
             allNames = list(self.allNames)
             allNames.sort()
             for tn in allNames:
@@ -582,6 +587,7 @@ def runTestList(tests, testsToRun, buildTimes, runTimes):
                 continue
             boxMessage("Passed test '" + tn + "'")
             print("\n")
+
             buildTimes.add(tn, T.buildTime)
             runTimes.add(tn, T.runTime)
 
@@ -633,6 +639,9 @@ def main():
         return 0
 
     [testsToRun, numRepeats] = parseArgs(tests)
+
+    if len(testsToRun) == 0 or numRepeats == 0:
+        return
 
     buildTimes = Timings()
     runTimes = Timings()
