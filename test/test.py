@@ -226,6 +226,7 @@ class CrunchTest(AllocsTest):
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
         cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"]
+        cmd += ["-fno-eliminate-unused-debug-types"]
         cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
         cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
         cmd += self.flags

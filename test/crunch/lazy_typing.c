@@ -23,5 +23,9 @@ int main(void) {
 
     fprintf(stderr, "Allocated a sockaddr_in at %p\n", p_mysock);
 
+    // Use struct foo so that the types don't get eliminated.
+    struct foo aFoo;
+    struct foo *pFoo = &aFoo;
+
     return 0;
 }

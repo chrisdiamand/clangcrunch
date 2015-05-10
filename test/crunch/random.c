@@ -61,5 +61,10 @@ int main(void) {
         for (unsigned long u = 0UL; u < spin_length/2; ++u)
             ;
     }
+
+    // Use a struct bases so the type doesn't get eliminated from debug info
+    struct bases aBases;
+    aBases.t = 123;
+
     return 0;
 }

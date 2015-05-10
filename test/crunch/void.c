@@ -16,5 +16,8 @@ int main(void)
 
     assert(__libcrunch_is_initialized);
 
+    struct foo aFoo;
+    aFoo.bar = 3;
+
     return 0;
 }
