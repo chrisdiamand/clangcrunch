@@ -445,6 +445,8 @@ def zshcomp(tests, prefix = ""):
     tests.sort()
     for t in tests:
         print(prefix, t)
+    for c in COMPILER_LIST:
+        print(prefix, c)
     # HACK: To enable complete for the -rNUM option, just add them here.
     print("-r1\n-r2\n-r3\n-r4\n-r5\n-r10")
 
