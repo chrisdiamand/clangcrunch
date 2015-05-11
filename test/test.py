@@ -541,7 +541,7 @@ class Timings:
         addTo[name].append(time)
         self.allNames.add(name)
 
-    def writeSingle(self, fp, tn):
+    def writeSingle(self, fp, tn, xpos):
         stockMean = None
         newMean = None
 
@@ -553,17 +553,19 @@ class Timings:
         if tn in self.stockTimes and tn in self.newTimes:
             stk = self.stockTimes[tn]
             new = self.newTimes[tn]
-            fp.write(tn + "\t")
+            fp.write(tn + "\t" + str(xpos) + "\t")
             fp.write(str(numpy.mean(stk)) + "\t" + str(numpy.std(stk)) + "\t")
             fp.write(str(numpy.mean(new)) + "\t" + str(numpy.std(new)) + "\n")
 
     def write(self, fname):
         with open(fname, "w") as fp:
-            fp.write("TestName\tStockMean\tStockSTD\tNewMean\tNewSTD\n")
+            fp.write("TestName\tXPos\tStockMean\tStockSTD\tNewMean\tNewSTD\n")
             allNames = list(self.allNames)
             allNames.sort()
+            xpos = 0
             for tn in allNames:
-                self.writeSingle(fp, tn)
+                self.writeSingle(fp, tn, xpos)
+                xpos += 1
 
 def runTestList(tests, testsToRun, buildTimes, runTimes):
     nonexist = 0
