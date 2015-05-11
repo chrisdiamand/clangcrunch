@@ -130,9 +130,9 @@ class Compiler:
 Compiler("new", ["clangallocscc"], ["clangcrunchcc"], True).add()
 # Also need -gstrict-dwarf for stock/GCC.
 Compiler("stock", ["allocscc"], ["crunchcc"], True).add()
-base = ["clang", "-ldl", "-lallocs"]
+base = ["clang", "-ldl", "-lallocs", "-g3", "-DNDEBUG"]
 Compiler("base", base + ["-O0"], base + ["-O0"], False).add()
-Compiler("baseO4", base + ["-O4"], base + ["-O4"], False).add()
+Compiler("baseO3", base + ["-O3"], base + ["-O3"], False).add()
 
 COMPILER_LIST = list(COMPILERS.keys())
 COMPILER_LIST.sort()
