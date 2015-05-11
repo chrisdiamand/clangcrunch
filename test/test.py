@@ -338,6 +338,7 @@ def register_tests():
     addAllocsTest("allocs/sloppy_dumptypes.c", summary = {})
     addAllocsTest("allocs/uniqtype_walk.c", flags = ["-lallocs"],
                   summary = {"a.heap": 1})
+    #addAllocsTest("allocs/sizefunc_arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
