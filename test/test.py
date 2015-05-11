@@ -164,7 +164,7 @@ class AllocsTest(Test):
         self.correctSummary = summary
 
     def getCompiler(self):
-        return "clang_allocscc"
+        return "clangallocscc"
 
     def getName(self):
         return self.testName
@@ -221,7 +221,7 @@ class StockAllocsTest(AllocsTest):
 
 class CrunchTest(AllocsTest):
     def getCompiler(self):
-        return "clang_crunchcc"
+        return "clangcrunchcc"
 
     def getBuildCmd(self):
         cmd = [self.getCompiler()]
@@ -276,7 +276,7 @@ class CrunchMakefileTest(CrunchTest):
         return cmd
 
     def getBuildEnv(self):
-        return {"CC": "clang_crunchcc"}
+        return {"CC": "clangcrunchcc"}
 
     def getName(self):
         return self.directory
