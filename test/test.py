@@ -506,6 +506,7 @@ def boxMessage(msg):
 class Timings:
     def __init__(self):
         self.times = {}
+        self.compilerList = []
 
     def add(self, compiler, name, time):
         assert(isinstance(compiler, Compiler))
@@ -516,17 +517,22 @@ class Timings:
             self.times[name][compiler.getName()] = []
         self.times[name][compiler.getName()].append(time)
 
+        if compiler.getName() not in self.compilerList:
+            self.compilerList.append(compiler.getName())
+            self.compilerList.sort()
+
     def writeSingle(self, fp, testName, xpos):
         stockMean = None
         newMean = None
         # Times for just this test
         testTimes = self.times[testName]
-        if len(testTimes) != len(COMPILERS):
+        if len(testTimes) != len(self.compilerList):
+            print("Warning: Not all timings for '%s' present." % testName)
             return
 
         fp.write("\\texttt{" + testName.replace("_", "\\_") + "}")
         fp.write("\t" + str(xpos))
-        for compName in COMPILER_LIST:
+        for compName in self.compilerList:
             times = testTimes[compName]
             fp.write("\t" + str(numpy.mean(times)))
             fp.write("\t" + str(numpy.std(times)))
@@ -535,7 +541,7 @@ class Timings:
     def write(self, fname):
         with open(fname, "w") as fp:
             fp.write("TestName\tXPos")
-            for compName in COMPILER_LIST:
+            for compName in self.compilerList:
                 fp.write("\t" + compName + "Mean\t" + compName + "SD")
             fp.write("\n")
             allNames = list(self.times.keys())
