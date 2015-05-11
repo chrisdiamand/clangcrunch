@@ -412,6 +412,8 @@ def register_tests():
                   summary = {"c.begun": 2, "c.remaining": 2, "c.lazy_heap": 1,
                              "c.nontriv": 1, "a.heap": 2})
 
+    addCrunchTest("crunch/nullcheck.c")
+
     addCrunchTest("crunch/random.c",
                   summary = {"c.begun": 1003, "a.heap": 339,
                              "c.remaining": 1003, "c.failed_other": 334,
