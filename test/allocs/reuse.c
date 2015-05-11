@@ -8,7 +8,7 @@
 
 size_t global_size = 0;
 
-int main(int argc) {
+int main(int argc, char **argv) {
     struct uniqtype *double_type = dlsym(RTLD_NEXT, "__uniqtype__double");
     assert(double_type != NULL);
     struct uniqtype *int_type = dlsym(RTLD_NEXT, "__uniqtype__int");
