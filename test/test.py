@@ -341,7 +341,8 @@ def register_tests():
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
-    addAllocsTest("allocs/reuse.c", summary = {"a.heap": 4})
+    addAllocsTest("allocs/reuse.c", summary = {"a.heap": 2})
+    #addAllocsTest("allocs/reuse_global.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/relf_auxv_dynamic.c", flags = ["-ldl"])
 
     summ = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
