@@ -134,6 +134,9 @@ base = ["clang", "-ldl", "-lallocs"]
 Compiler("base", base + ["-O0"], base + ["-O0"], False).add()
 Compiler("baseO4", base + ["-O4"], base + ["-O4"], False).add()
 
+COMPILER_LIST = list(COMPILERS.keys())
+COMPILER_LIST.sort()
+
 class Test:
     def build(self, compiler):
         self.clean()
@@ -502,43 +505,40 @@ def boxMessage(msg):
 
 class Timings:
     def __init__(self):
-        self.stockTimes = {}
-        self.newTimes = {}
-        self.allNames = set()
+        self.times = {}
 
-    def add(self, name, time):
-        if name.startswith("stock/"):
-            addTo = self.stockTimes
-            name = name[6:]
-        else:
-            addTo = self.newTimes
+    def add(self, compiler, name, time):
+        assert(isinstance(compiler, Compiler))
+        if name not in self.times:
+            self.times[name] = dict()
 
-        if name not in addTo:
-            addTo[name] = []
-        addTo[name].append(time)
-        self.allNames.add(name)
+        if compiler.getName() not in self.times[name]:
+            self.times[name][compiler.getName()] = []
+        self.times[name][compiler.getName()].append(time)
 
-    def writeSingle(self, fp, tn, xpos):
+    def writeSingle(self, fp, testName, xpos):
         stockMean = None
         newMean = None
+        # Times for just this test
+        testTimes = self.times[testName]
+        if len(testTimes) != len(COMPILERS):
+            return
 
-        if tn in self.stockTimes:
-            stockMean = numpy.mean(self.stockTimes[tn])
-        if tn in self.newTimes:
-            newMean = numpy.mean(self.newTimes[tn])
-
-        if tn in self.stockTimes and tn in self.newTimes:
-            stk = self.stockTimes[tn]
-            new = self.newTimes[tn]
-            fp.write("\\texttt{" + tn.replace("_", "\\_") + "}\t")
-            fp.write(str(xpos) + "\t")
-            fp.write(str(numpy.mean(stk)) + "\t" + str(numpy.std(stk)) + "\t")
-            fp.write(str(numpy.mean(new)) + "\t" + str(numpy.std(new)) + "\n")
+        fp.write("\\texttt{" + testName.replace("_", "\\_") + "}")
+        fp.write("\t" + str(xpos))
+        for compName in COMPILER_LIST:
+            times = testTimes[compName]
+            fp.write("\t" + str(numpy.mean(times)))
+            fp.write("\t" + str(numpy.std(times)))
+        fp.write("\n")
 
     def write(self, fname):
         with open(fname, "w") as fp:
-            fp.write("TestName\tXPos\tStockMean\tStockSTD\tNewMean\tNewSTD\n")
-            allNames = list(self.allNames)
+            fp.write("TestName\tXPos")
+            for compName in COMPILER_LIST:
+                fp.write("\t" + compName + "Mean\t" + compName + "SD")
+            fp.write("\n")
+            allNames = list(self.times.keys())
             allNames.sort()
             xpos = 0
             for tn in allNames:
@@ -574,8 +574,8 @@ def runTestList(tests, testsToRun, buildTimes, runTimes):
             boxMessage("Passed test '" + compiler.getName() + ":" + tn + "'")
             print("\n")
 
-            buildTimes.add(tn, T.buildTime)
-            runTimes.add(tn, T.runTime)
+            buildTimes.add(compiler, tn, T.buildTime)
+            runTimes.add(compiler, tn, T.runTime)
 
             passed += 1
     except KeyboardInterrupt:
