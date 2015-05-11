@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import itertools
 import numpy
 from os import path
 import os
@@ -101,10 +102,43 @@ def parseSummary(output):
         ret.update(parseSummaryLine(l.strip()))
     return ret
 
+COMPILERS = dict()
+
+class Compiler:
+    def __init__(self, name, allocsCmd, crunchCmd, checkSummary):
+        self.name = name
+        self.allocsCmd = allocsCmd
+        self.crunchCmd = crunchCmd
+        self.checkSummary = checkSummary
+
+    def getName(self):
+        return self.name
+
+    def getAllocsCmd(self):
+        return self.allocsCmd
+
+    def getCrunchCmd(self):
+        return self.crunchCmd
+
+    def getShouldPass(self):
+        return self.checkSummary
+
+    def add(self):
+        assert self.getName not in COMPILERS
+        COMPILERS[self.getName()] = self
+
+Compiler("new", ["clangallocscc"], ["clangcrunchcc"], True).add()
+# Also need -gstrict-dwarf for stock/GCC.
+Compiler("stock", ["allocscc"], ["crunchcc"], True).add()
+base = ["clang", "-ldl", "-lallocs"]
+Compiler("base", base + ["-O0"], base + ["-O0"], False).add()
+Compiler("baseO4", base + ["-O4"], base + ["-O4"], False).add()
+
 class Test:
-    def build(self):
+    def build(self, compiler):
         self.clean()
-        cmdout = runWithEnv(self.getBuildCmd(), self.getBuildEnv())
+        cmdout = runWithEnv(self.getBuildCmd(compiler),
+                            self.getBuildEnv(compiler))
         self.buildTime = cmdout[3]
         return cmdout[0]
 
@@ -140,7 +174,7 @@ class Test:
     def getCleanFiles(self):
         return []
 
-    def getBuildEnv(self):
+    def getBuildEnv(self, compiler):
         return {}
 
     def getRunEnv(self):
@@ -163,20 +197,17 @@ class AllocsTest(Test):
         self.flags = flags
         self.correctSummary = summary
 
-    def getCompiler(self):
-        return "clangallocscc"
-
     def getName(self):
         return self.testName
 
-    def getBuildCmd(self):
-        cmd = [self.getCompiler()]
+    def getBuildCmd(self, compiler):
+        cmd = compiler.getAllocsCmd()
         cmd += ["-std=c99", "-DUSE_STARTUP_BRK"]
         cmd += self.flags
         cmd += [self.src_fname, "-o", self.out_fname]
         return cmd
 
-    def getBuildEnv(self):
+    def getBuildEnv(self, compiler):
         return self.buildEnv
 
     def getRunEnv(self):
@@ -202,29 +233,9 @@ class AllocsTest(Test):
 
         return files
 
-class StockAllocsTest(AllocsTest):
-    def getBuildCmd(self):
-        cmd = AllocsTest.getBuildCmd(self)
-        # Without this argument there are "undefined reference to
-        # `local_accessors'" errors.
-        cmd = [cmd[0], "-gstrict-dwarf"] + cmd[1:]
-        return cmd
-
-    def getCompiler(self):
-        return "allocscc"
-
-    def getName(self):
-        n = AllocsTest.getName(self)
-        if n.startswith("broken/"):
-            return "broken/stock" + n[6:]
-        return "stock/" + n
-
 class CrunchTest(AllocsTest):
-    def getCompiler(self):
-        return "clangcrunchcc"
-
-    def getBuildCmd(self):
-        cmd = [self.getCompiler()]
+    def getBuildCmd(self, compiler):
+        cmd = compiler.getCrunchCmd()
         cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"]
         cmd += ["-fno-eliminate-unused-debug-types"]
         cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
@@ -241,55 +252,24 @@ class CrunchTest(AllocsTest):
         ld_preload = {"LD_PRELOAD": path.realpath(liballocs)}
         return dict(self.runEnv, **ld_preload)
 
-class StockCrunchTest(CrunchTest):
-    def getBuildCmd(self):
-        if False:
-            cmd = [self.getCompiler()]
-            cmd += ["-D_GNU_SOURCE", "-g3", "-gstrict-dwarf", "-std=c99"]
-            cmd += ["-fno-eliminate-unused-debug-types"]
-            cmd += ["-O2", "-DUSE_STARTUP_BRK"]
-            cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
-            cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
-            cmd += self.flags
-            cmd += [self.src_fname, "-o", self.out_fname]
-        cmd = CrunchTest.getBuildCmd(self)
-        cmd = [cmd[0], "-gstrict-dwarf"] + cmd[1:]
-        return cmd
-
-    def getCompiler(self):
-        return "crunchcc"
-
-    def getName(self):
-        n = CrunchTest.getName(self)
-        if n.startswith("broken/"):
-            return "broken/stock" + n[6:]
-        return "stock/" + n
-
 class CrunchMakefileTest(CrunchTest):
     def __init__(self, directory, summary = {}):
         self.directory = directory
         self.out_fname = path.join(directory, path.basename(directory))
         AllocsTest.__init__(self, self.out_fname + ".c", summary = summary)
 
-    def getBuildCmd(self):
+    def getBuildCmd(self, compiler):
         cmd = ["make", "-C", path.join(TESTDIR, self.directory)]
         return cmd
 
-    def getBuildEnv(self):
-        return {"CC": "clangcrunchcc"}
+    def getBuildEnv(self, compiler):
+        return {"CC": " ".join(compiler.getCrunchCmd())}
 
     def getName(self):
         return self.directory
 
     def getCleanFiles(self):
         return []
-
-class StockCrunchMakefileTest(CrunchMakefileTest):
-    def getBuildEnv(self):
-        return {"CC": "crunchcc"}
-
-    def getName(self):
-        return "stock/" + CrunchMakefileTest.getName(self)
 
 def pkg_config(pkg):
     cmd = ["pkg-config", "--cflags", "--libs", pkg]
@@ -310,15 +290,11 @@ def register_tests():
     def addAllocsTest(t, buildEnv = {}, runEnv = {}, flags = [], summary = {}):
         add(AllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
                        flags = flags, summary = summary))
-        add(StockAllocsTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            flags = flags, summary = summary))
 
     def addCrunchTest(t, buildEnv = {}, runEnv = {},
                       fail = False, flags = [], summary = {}):
         add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
                        fail = fail, flags = flags, summary = summary))
-        add(StockCrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
-                            fail = fail, flags = flags, summary = summary))
 
     addAllocsTest("allocs/alloca.c", summary = {"a.stack": 1})
 
@@ -348,11 +324,9 @@ def register_tests():
 
     summ = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
     add(CrunchMakefileTest("crunch/section_group", summary = summ))
-    add(StockCrunchMakefileTest("crunch/section_group", summary = summ))
 
     summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
     add(CrunchMakefileTest("crunch/incomplete", summary = summ))
-    add(StockCrunchMakefileTest("crunch/incomplete", summary = summ))
 
     addCrunchTest("crunch/array.c",
                   summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
@@ -479,7 +453,8 @@ def helpAndExit(tests):
 
 def parseArgs(allTests):
     argv = sys.argv[1:]
-    ret = set()
+    testNames = set()
+    compilersToUse = set()
     numRepeats = 1
 
     if len(argv) == 0:
@@ -492,27 +467,29 @@ def parseArgs(allTests):
                 ret.add(tn)
         argv.remove("ALL")
 
-    if "ALLclang" in argv:
-        for tn in allTests:
-            if not tn.startswith("broken/") and not tn.startswith("stock/"):
-                ret.add(tn)
-        argv.remove("ALLclang")
-
     # For each argument, add every test that is a prefix match of that
     # argument.
     for arg in argv:
         if arg.startswith("-r"):
             numRepeats = int(arg[2:])
             continue
+        elif arg in COMPILERS:
+            compilersToUse.add(COMPILERS[arg])
+            continue
 
         numMatched = 0
         for tn in allTests:
             if tn.startswith(arg):
-                ret.add(tn)
+                testNames.add(tn)
                 numMatched += 1
         if numMatched == 0:
             print("Error: No tests match '%s'." % arg)
             return [{}, 0]
+
+    if len(compilersToUse) == 0:
+        compilersToUse = set(COMPILERS.values())
+
+    ret = set(itertools.product(compilersToUse, testNames))
     return [ret, numRepeats]
 
 def boxMessage(msg):
@@ -578,22 +555,23 @@ def runTestList(tests, testsToRun, buildTimes, runTimes):
     total = len(testsToRun)
 
     try:
-        for tn in testsToRun:
+        for (compiler, tn) in testsToRun:
             if tn not in tests:
                 print("Error: No such test: \'" + tn + "\'")
                 nonexist += 1
                 continue
             T = tests[tn]
-            if T.build() != 0:
-                failed_build += [tn]
+            if T.build(compiler) != 0:
+                failed_build += [compiler.getName() + ":" + tn]
                 continue
-            if T.run() != 0:
-                failed_returncode += [tn]
+            retcode = T.run()
+            if compiler.getShouldPass() and retcode != 0:
+                failed_returncode += [compiler.getName() + ":" + tn]
                 continue
-            if not T.checkSummary():
-                failed_summary += [tn]
+            if compiler.getShouldPass() and not T.checkSummary():
+                failed_summary += [compiler.getName() + ":" + tn]
                 continue
-            boxMessage("Passed test '" + tn + "'")
+            boxMessage("Passed test '" + compiler.getName() + ":" + tn + "'")
             print("\n")
 
             buildTimes.add(tn, T.buildTime)
