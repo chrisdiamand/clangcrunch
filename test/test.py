@@ -51,13 +51,6 @@ def runWithEnv(cmd, env = {}):
     stdout = stdout.decode()
     stderr = stderr.decode()
 
-    print("Command exited with status", returncode, ":")
-    print("   ", " ".join(assigns + cmd))
-    print("stdout:")
-    print(stdout)
-    print("\nstderr:")
-    print(stderr)
-
     return (returncode, stdout, stderr, elapsedTime)
 
 def parseSummaryLine(line):
@@ -138,16 +131,28 @@ COMPILER_LIST = list(COMPILERS.keys())
 COMPILER_LIST.sort()
 
 class Test:
+    def writeToLog(self, compilerName, stage, stdout, stderr):
+        fname = path.join(TESTDIR, "log", compilerName, self.getName())
+        if not os.path.isdir(fname):
+            os.makedirs(fname)
+        fname = path.join(fname, stage)
+        with open(fname + ".stdout", "w") as fp:
+            fp.write(stdout)
+        with open(fname + ".stderr", "w") as fp:
+            fp.write(stderr)
+
     def build(self, compiler):
         self.clean()
         cmdout = runWithEnv(self.getBuildCmd(compiler),
                             self.getBuildEnv(compiler))
         self.buildTime = cmdout[3]
+        self.writeToLog(compiler.getName(), "build", cmdout[1], cmdout[2])
         return cmdout[0]
 
-    def run(self):
+    def run(self, compiler):
         cmdout = runWithEnv(self.getRunCmd(), self.getRunEnv())
         self.runTime = cmdout[3]
+        self.writeToLog(compiler.getName(), "run", cmdout[1], cmdout[2])
         self.actualSummary = parseSummary(cmdout[2])
         return cmdout[0]
 
@@ -529,7 +534,6 @@ class Timings:
         # Times for just this test
         testTimes = self.times[testName]
         if len(testTimes) != len(self.compilerList):
-            print("Warning: Not all timings for '%s' present." % testName)
             return
 
         fp.write("\\texttt{" + testName.replace("_", "\\_") + "}")
@@ -571,15 +575,18 @@ def runTestList(tests, testsToRun, buildTimes, runTimes):
             T = tests[tn]
             if T.build(compiler) != 0:
                 failed_build += [compiler.getName() + ":" + tn]
+                boxMessage("Failed " + compiler.getName() + ":" + tn)
                 continue
-            retcode = T.run()
+            retcode = T.run(compiler)
             if compiler.getShouldPass() and retcode != 0:
                 failed_returncode += [compiler.getName() + ":" + tn]
+                boxMessage("Failed " + compiler.getName() + ":" + tn)
                 continue
             if compiler.getShouldPass() and not T.checkSummary():
                 failed_summary += [compiler.getName() + ":" + tn]
+                boxMessage("Failed " + compiler.getName() + ":" + tn)
                 continue
-            boxMessage("Passed test '" + compiler.getName() + ":" + tn + "'")
+            boxMessage("Passed " + compiler.getName() + ":" + tn)
             print("\n")
 
             buildTimes.add(compiler, tn, T.buildTime)
