@@ -534,7 +534,7 @@ class Timings:
         # Times for just this test
         testTimes = self.times[testName]
         if len(testTimes) != len(self.compilerList):
-            return
+            return False
 
         fp.write("\\texttt{" + testName.replace("_", "\\_") + "}")
         fp.write("\t" + str(xpos))
@@ -543,6 +543,7 @@ class Timings:
             fp.write("\t" + str(numpy.mean(times)))
             fp.write("\t" + str(numpy.std(times)))
         fp.write("\n")
+        return True
 
     def write(self, fname):
         with open(fname, "w") as fp:
@@ -554,8 +555,9 @@ class Timings:
             allNames.sort()
             xpos = 0
             for tn in allNames:
-                self.writeSingle(fp, tn, xpos)
-                xpos += 1
+                didWrite = self.writeSingle(fp, tn, xpos)
+                if didWrite:
+                    xpos += 1
 
 def runTestList(tests, testsToRun, buildTimes, runTimes):
     nonexist = 0
