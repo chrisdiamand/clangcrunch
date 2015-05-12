@@ -204,10 +204,10 @@ class AllocsTest(Test):
         return self.testName
 
     def getBuildCmd(self, compiler):
-        cmd = compiler.getAllocsCmd()
-        cmd += ["-std=c99", "-DUSE_STARTUP_BRK"]
-        cmd += self.flags
-        cmd += [self.src_fname, "-o", self.out_fname]
+        cmd = compiler.getAllocsCmd() \
+            + ["-std=c99", "-DUSE_STARTUP_BRK"] \
+            + self.flags \
+            + [self.src_fname, "-o", self.out_fname]
         return cmd
 
     def getBuildEnv(self, compiler):
@@ -238,12 +238,12 @@ class AllocsTest(Test):
 
 class CrunchTest(AllocsTest):
     def getBuildCmd(self, compiler):
-        cmd = compiler.getCrunchCmd()
-        cmd += ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"]
-        cmd += ["-fno-eliminate-unused-debug-types"]
-        cmd += ["-I" + path.join(LIBCRUNCH_BASE, "include")]
-        cmd += ["-I" + path.join(LIBALLOCS_BASE, "include")]
-        cmd += self.flags
+        cmd = compiler.getCrunchCmd() \
+            + ["-D_GNU_SOURCE", "-std=c99", "-DUSE_STARTUP_BRK"] \
+            + ["-fno-eliminate-unused-debug-types"] \
+            + ["-I" + path.join(LIBCRUNCH_BASE, "include")] \
+            + ["-I" + path.join(LIBALLOCS_BASE, "include")] \
+            + self.flags
         # CrunchCC has a bug where the allocsites can get lost if the source
         # filename is an absolute path. Make it relative to TESTDIR.
         src = path.relpath(self.src_fname, TESTDIR)
@@ -469,7 +469,7 @@ def parseArgs(allTests):
     if "ALL" in argv:
         for tn in allTests:
             if not tn.startswith("broken/"):
-                ret.add(tn)
+                testNames.add(tn)
         argv.remove("ALL")
 
     # For each argument, add every test that is a prefix match of that
