@@ -324,7 +324,7 @@ def register_tests():
                   summary = {"a.heap": 1})
     #addAllocsTest("allocs/sizefunc_arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
-    addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 2})
+    addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 3})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/reuse.c", summary = {"a.heap": 2})
     #addAllocsTest("allocs/reuse_global.c", summary = {"a.heap": 2})

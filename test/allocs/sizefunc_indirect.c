@@ -25,6 +25,14 @@ int main(void) {
     assert(got_type2 != NULL);
     assert(got_type2 == actual_type);
 
+    /* Allocate with it again to check it hasn't been ignored by the
+     * infinite-recursion protection. */
+    size_t size = getsize2();
+    alloc2 = malloc(size);
+    got_type2 = __liballocs_get_alloc_type(alloc2);
+    assert(got_type2 != NULL);
+    assert(got_type2 == actual_type);
+
     /* Weird bug: liballocs can't find the alloc size when it's allocated like
      * malloc(gs2()). The type is detected correctly though so the bug is in
      * liballocs. */
