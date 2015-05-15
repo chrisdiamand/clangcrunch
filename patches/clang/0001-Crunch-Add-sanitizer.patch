@@ -1,0 +1,953 @@
+From ebfd9229a23a238469a76cabf634f6502dc8cd85 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Tue, 6 Jan 2015 09:31:08 +0000
+Subject: [PATCH] Crunch: Add sanitizer.
+
+---
+ .gitignore                           |   3 +
+ include/clang/Basic/Sanitizers.def   |   4 +
+ include/clang/Driver/SanitizerArgs.h |   1 +
+ lib/CodeGen/BackendUtil.cpp          |  13 ++
+ lib/CodeGen/CGExpr.cpp               |   3 +
+ lib/CodeGen/CGExprScalar.cpp         |  39 ++++-
+ lib/CodeGen/CMakeLists.txt           |   4 +
+ lib/CodeGen/Crunch/Check.cpp         | 136 ++++++++++++++++
+ lib/CodeGen/Crunch/Check.h           |  53 ++++++
+ lib/CodeGen/Crunch/Crunch.cpp        | 306 +++++++++++++++++++++++++++++++++++
+ lib/CodeGen/Crunch/Crunch.h          |  36 +++++
+ lib/CodeGen/Crunch/Emit.cpp          |  86 ++++++++++
+ lib/CodeGen/Crunch/Emit.h            |  16 ++
+ lib/Driver/Tools.cpp                 |   4 +
+ 14 files changed, 697 insertions(+), 7 deletions(-)
+ create mode 100644 lib/CodeGen/Crunch/Check.cpp
+ create mode 100644 lib/CodeGen/Crunch/Check.h
+ create mode 100644 lib/CodeGen/Crunch/Crunch.cpp
+ create mode 100644 lib/CodeGen/Crunch/Crunch.h
+ create mode 100644 lib/CodeGen/Crunch/Emit.cpp
+ create mode 100644 lib/CodeGen/Crunch/Emit.h
+
+diff --git a/.gitignore b/.gitignore
+index 6c34e37..7e4ddb9 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -18,6 +18,9 @@
+ # vim swap files
+ .*.swp
+ .sw?
++Session.vim
++# Ctags output
++tags
+ 
+ #==============================================================================#
+ # Explicit files to ignore (only matches one).
+diff --git a/include/clang/Basic/Sanitizers.def b/include/clang/Basic/Sanitizers.def
+index 65ababd..07b65e0 100644
+--- a/include/clang/Basic/Sanitizers.def
++++ b/include/clang/Basic/Sanitizers.def
+@@ -41,6 +41,10 @@
+ // AddressSanitizer
+ SANITIZER("address", Address)
+ 
++// CrunchSanitizer
++SANITIZER("allocs", Allocs)
++SANITIZER("crunch", Crunch)
++
+ // MemorySanitizer
+ SANITIZER("memory", Memory)
+ 
+diff --git a/include/clang/Driver/SanitizerArgs.h b/include/clang/Driver/SanitizerArgs.h
+index 04e2821..bade602 100644
+--- a/include/clang/Driver/SanitizerArgs.h
++++ b/include/clang/Driver/SanitizerArgs.h
+@@ -47,6 +47,7 @@ class SanitizerArgs {
+   }
+   bool needsUbsanRt() const;
+   bool needsDfsanRt() const { return Sanitizers.has(SanitizerKind::DataFlow); }
++  bool needsCrunchRt() const { return Sanitizers.has(SanitizerKind::Crunch); }
+ 
+   bool requiresPIE() const;
+   bool needsUnwindTables() const;
+diff --git a/lib/CodeGen/BackendUtil.cpp b/lib/CodeGen/BackendUtil.cpp
+index bdab637..1d6a25d 100644
+--- a/lib/CodeGen/BackendUtil.cpp
++++ b/lib/CodeGen/BackendUtil.cpp
+@@ -41,6 +41,7 @@
+ #include "llvm/Transforms/ObjCARC.h"
+ #include "llvm/Transforms/Scalar.h"
+ #include "llvm/Transforms/Utils/SymbolRewriter.h"
++#include "llvm/Transforms/AllocSites/AllocSites.h"
+ #include <memory>
+ using namespace clang;
+ using namespace llvm;
+@@ -224,6 +225,12 @@ static void addThreadSanitizerPass(const PassManagerBuilder &Builder,
+   PM.add(createThreadSanitizerPass());
+ }
+ 
++static void addAllocSitesSanitizerPass(const PassManagerBuilder &Builder,
++                                   legacy::PassManagerBase &PM) {
++  PM.add(createSROAPass());
++  PM.add(createAllocSitesSanitizerPass());
++}
++
+ static void addDataFlowSanitizerPass(const PassManagerBuilder &Builder,
+                                      legacy::PassManagerBase &PM) {
+   const PassManagerBuilderWrapper &BuilderWrapper =
+@@ -342,6 +349,12 @@ void EmitAssemblyHelper::CreatePasses() {
+                            addDataFlowSanitizerPass);
+   }
+ 
++  if (LangOpts.Sanitize.has(SanitizerKind::Allocs) ||
++      LangOpts.Sanitize.has(SanitizerKind::Crunch)) {
++    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
++                           addAllocSitesSanitizerPass);
++  }
++
+   // Figure out TargetLibraryInfo.
+   Triple TargetTriple(TheModule->getTargetTriple());
+   PMBuilder.LibraryInfo = createTLII(TargetTriple, CodeGenOpts);
+diff --git a/lib/CodeGen/CGExpr.cpp b/lib/CodeGen/CGExpr.cpp
+index f86e970..7b85ca5 100644
+--- a/lib/CodeGen/CGExpr.cpp
++++ b/lib/CodeGen/CGExpr.cpp
+@@ -19,6 +19,7 @@
+ #include "CGOpenMPRuntime.h"
+ #include "CGRecordLayout.h"
+ #include "CodeGenModule.h"
++#include "Crunch/Crunch.h"
+ #include "TargetInfo.h"
+ #include "clang/AST/ASTContext.h"
+ #include "clang/AST/Attr.h"
+@@ -3430,6 +3431,8 @@ RValue CodeGenFunction::EmitCall(QualType CalleeType, llvm::Value *Callee,
+     Callee = Builder.CreateBitCast(Callee, CalleeTy, "callee.knr.cast");
+   }
+ 
++  Crunch::checkCallArgs(*this, E, Callee, Args);
++
+   return EmitCall(FnInfo, Callee, ReturnValue, Args, TargetDecl);
+ }
+ 
+diff --git a/lib/CodeGen/CGExprScalar.cpp b/lib/CodeGen/CGExprScalar.cpp
+index 658bd3e..e36d323 100644
+--- a/lib/CodeGen/CGExprScalar.cpp
++++ b/lib/CodeGen/CGExprScalar.cpp
+@@ -16,6 +16,7 @@
+ #include "CGDebugInfo.h"
+ #include "CGObjCRuntime.h"
+ #include "CodeGenModule.h"
++#include "Crunch/Crunch.h"
+ #include "clang/AST/ASTContext.h"
+ #include "clang/AST/DeclObjC.h"
+ #include "clang/AST/RecordLayout.h"
+@@ -319,7 +320,7 @@ public:
+   }
+   Value *VisitCastExpr(CastExpr *E);
+ 
+-  Value *VisitCallExpr(const CallExpr *E) {
++  Value *VisitCallExpr_actual(const CallExpr *E) {
+     if (E->getCallReturnType(CGF.getContext())->isReferenceType())
+       return EmitLoadOfLValue(E);
+ 
+@@ -329,6 +330,12 @@ public:
+     return V;
+   }
+ 
++  Value *VisitCallExpr(const CallExpr *E) {
++    Value *V = VisitCallExpr_actual(E);
++    Crunch::checkCallRet(CGF, E, V);
++    return V;
++  }
++
+   Value *VisitStmtExpr(const StmtExpr *E);
+ 
+   // Unary Operators.
+@@ -470,6 +477,7 @@ public:
+       return Builder.CreateFMul(Ops.LHS, Ops.RHS, "mul");
+     return Builder.CreateMul(Ops.LHS, Ops.RHS, "mul");
+   }
++
+   /// Create a binary op that checks for overflow.
+   /// Currently only supports +, - and *.
+   Value *EmitOverflowCheckedBinOp(const BinOpInfo &Ops);
+@@ -1384,6 +1392,8 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
+                        "(must be an address space cast)!");
+     }
+ 
++    Crunch::emitCastCheck(CGF, E, Src, DestTy);
++
+     if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast)) {
+       if (auto PT = DestTy->getAs<PointerType>())
+         CGF.EmitVTablePtrCheckForCast(PT->getPointeeType(), Src,
+@@ -1536,7 +1546,13 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
+     llvm::Value* IntResult =
+       Builder.CreateIntCast(Src, MiddleTy, InputSigned, "conv");
+ 
+-    return Builder.CreateIntToPtr(IntResult, ConvertType(DestTy));
++    llvm::Type *DstTy = ConvertType(DestTy);
++    Value *Ptr = Builder.CreateIntToPtr(IntResult, DstTy);
++
++    // Do this after casting here as it does a BitCast for __is_aU().
++    Crunch::emitCastCheck(CGF, E, Ptr, DestTy);
++
++    return Ptr;
+   }
+   case CK_PointerToIntegral:
+     assert(!DestTy->isBooleanType() && "bool should use PointerToBool");
+@@ -1918,8 +1934,10 @@ Value *ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
+ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
+   // Try folding the offsetof to a constant.
+   llvm::APSInt Value;
+-  if (E->EvaluateAsInt(Value, CGF.getContext()))
+-    return Builder.getInt(Value);
++  if (E->EvaluateAsInt(Value, CGF.getContext())) {
++    auto Ret = Builder.getInt(Value);
++    return Crunch::markSizeofExpr(CGF, E, Ret);
++  }
+ 
+   // Loop over the components of the offsetof to compute the value.
+   unsigned n = E->getNumComponents();
+@@ -2001,7 +2019,7 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
+     }
+     Result = Builder.CreateAdd(Result, Offset);
+   }
+-  return Result;
++  return Crunch::markSizeofExpr(CGF, E, Result);
+ }
+ 
+ /// VisitUnaryExprOrTypeTraitExpr - Return the size or alignment of the type of
+@@ -2009,6 +2027,7 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
+ Value *
+ ScalarExprEmitter::VisitUnaryExprOrTypeTraitExpr(
+                               const UnaryExprOrTypeTraitExpr *E) {
++  llvm::Value *Ret = nullptr;
+   QualType TypeToSize = E->getTypeOfArgument();
+   if (E->getKind() == UETT_SizeOf) {
+     if (const VariableArrayType *VAT =
+@@ -2033,13 +2052,19 @@ ScalarExprEmitter::VisitUnaryExprOrTypeTraitExpr(
+       if (!eltSize.isOne())
+         size = CGF.Builder.CreateNUWMul(CGF.CGM.getSize(eltSize), numElts);
+ 
+-      return size;
++      Ret = size;
+     }
+   }
+ 
+   // If this isn't sizeof(vla), the result must be constant; use the constant
+   // folding logic so we don't have to duplicate it here.
+-  return Builder.getInt(E->EvaluateKnownConstInt(CGF.getContext()));
++  if (Ret == nullptr) {
++    Ret = Builder.getInt(E->EvaluateKnownConstInt(CGF.getContext()));
++  }
++
++  Ret = Crunch::markSizeofExpr(CGF, E, Ret);
++
++  return Ret;
+ }
+ 
+ Value *ScalarExprEmitter::VisitUnaryReal(const UnaryOperator *E) {
+diff --git a/lib/CodeGen/CMakeLists.txt b/lib/CodeGen/CMakeLists.txt
+index 18f505d..fecb331 100644
+--- a/lib/CodeGen/CMakeLists.txt
++++ b/lib/CodeGen/CMakeLists.txt
+@@ -1,4 +1,5 @@
+ set(LLVM_LINK_COMPONENTS
++  AllocSites
+   Analysis
+   BitReader
+   BitWriter
+@@ -70,6 +71,9 @@ add_clang_library(clangCodeGen
+   ItaniumCXXABI.cpp
+   MicrosoftCXXABI.cpp
+   ModuleBuilder.cpp
++  Crunch/Check.cpp
++  Crunch/Crunch.cpp
++  Crunch/Emit.cpp
+   SanitizerMetadata.cpp
+   TargetInfo.cpp
+ 
+diff --git a/lib/CodeGen/Crunch/Check.cpp b/lib/CodeGen/Crunch/Check.cpp
+new file mode 100644
+index 0000000..1490194
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Check.cpp
+@@ -0,0 +1,136 @@
++#include <assert.h>
++
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++#include "llvm/IR/Constants.h"
++#include "llvm/IR/Function.h"
++#include "llvm/IR/GlobalVariable.h"
++#include "llvm/IR/Module.h"
++
++#include <cstring>
++#include <iostream>
++
++#include "Crunch/Check.h"
++#include "Crunch/Crunch.h"
++#include "Crunch/Emit.h"
++
++using namespace clang;
++using namespace CodeGen;
++
++namespace Crunch {
++
++// GetUniqtype - return the correct uniqtype variable for a given type to
++// check.
++llvm::Value *Check::getUniqtypeVariable() {
++  switch (CheckFunKind) {
++    case CT_NoCheck:
++      return nullptr;
++
++    case CT_IsA:
++    case CT_FunctionRefining: {
++      std::string UniqtypeName = "__uniqtype__" + CrunchTypeName;
++
++      llvm::Type *utTy = llvm::Type::getInt8PtrTy(VMContext);
++      llvm::Constant *ret = getModule().getOrInsertGlobal(UniqtypeName, utTy);
++      return Builder.CreateBitCast(ret, utTy);
++    }
++
++    case CT_Named:
++      return llvm::ConstantDataArray::getString(VMContext, CrunchTypeName);
++
++    case CT_PointerOfDegree:
++      return llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
++                                    PointerDegree);
++  }
++
++  assert(false && "Invalid CheckFunKind");
++  return nullptr;
++}
++
++Check::Check(clang::CodeGen::CodeGenFunction &_CGF, const clang::Expr *_ClSrc,
++             llvm::Value *_Src, clang::QualType &_DestClangTy) :
++  CGF(_CGF), Builder(_CGF.Builder), VMContext(_CGF.getLLVMContext()),
++  ClangSrc(_ClSrc), Src(_Src), DestClangTy(_DestClangTy)
++{
++  assert(DestClangTy->isPointerType() && "Can't check non-pointer destination types");
++  PointeeTy = DestClangTy->getPointeeType();
++  /* Need to strip parentheses; these occur around function prototypes and mean
++   * that the QualType can't be casted directly to a FunctionProtoType. */
++  PointeeTy = PointeeTy.IgnoreParens();
++
++  CrunchTypeName = parseType(PointeeTy, &CheckFunKind, &PointerDegree);
++}
++
++bool sloppyFunctionPointers() {
++  if (getenv("LIBCRUNCH_SLOPPY_FUNCTION_POINTERS") != nullptr) {
++    return true;
++  }
++  return false;
++}
++
++static std::string getCheckFunctionName(CheckFunctionKind Kind) {
++  switch (Kind) {
++    case CT_NoCheck:            return "__no_check";
++    case CT_IsA:                return "__is_aU_not_inlined";
++    case CT_Named:              return "__named_a_internal";
++    case CT_PointerOfDegree:    return "__is_a_pointer_of_degree_internal";
++    case CT_FunctionRefining:   return "__is_a_function_refining_internal";
++  }
++  assert(false && "Invalid CheckFunctionKind");
++  return "ERROR";
++}
++
++llvm::Constant *Check::getCheckFunction(llvm::Type *SecondArg) {
++  llvm::Constant *Ret = nullptr;
++  llvm::Type *ArgTy[2];
++  llvm::Module &TheModule = getModule();
++  llvm::Type *ResTy = llvm::Type::getInt32Ty(VMContext);
++  std::string FunName = getCheckFunctionName(CheckFunKind);
++
++  // The first argument is always the pointer to be checked.
++  ArgTy[0] = llvm::Type::getInt8PtrTy(VMContext);
++  ArgTy[1] = SecondArg;
++
++  auto ArgTyPtr = const_cast<llvm::Type **>(ArgTy);
++  llvm::ArrayRef<llvm::Type *> ArgTy_ar(ArgTyPtr, 2);
++  llvm::FunctionType *FunTy = llvm::FunctionType::get(ResTy, ArgTy_ar, false);
++  Ret = TheModule.getOrInsertFunction(FunName, FunTy);
++
++  return Ret;
++}
++
++void Check::emit() {
++  if (!CGF.SanOpts.has(SanitizerKind::Crunch) || CheckFunKind == CT_NoCheck)
++    return;
++
++  /* When sloppyFunctionPointers is enabled, we check the actual function call
++   * instead of the function pointer cast. */
++  if (sloppyFunctionPointers() && CheckFunKind == CT_FunctionRefining)
++    return;
++
++  /* The IsA check calls a function which already increments the counter for
++   * us. The other calls just skip straight to calling %_internal. */
++  if (CheckFunKind != CT_IsA) {
++    emitIncrementCheckCount(CGF);
++  }
++
++  // Cast the pointer to int8_t * to match __is_aU().
++  Src = Builder.CreateBitCast(Src, llvm::Type::getInt8PtrTy(VMContext));
++
++  std::vector<llvm::Value *> ArgsV;
++  ArgsV.push_back(Src);
++
++  llvm::Value *Uniqtype = getUniqtypeVariable();
++  assert(Uniqtype != nullptr);
++  llvm::Constant *CheckFun = getCheckFunction(Uniqtype->getType());
++
++  ArgsV.push_back(Uniqtype);
++
++  llvm::Value *CheckRet = Builder.CreateCall(CheckFun, ArgsV, "crunch_check");
++
++  const std::string Msg = getCheckFunctionName(CheckFunKind)
++                  + "(?, " + CrunchTypeName + ")";
++  emitAssert(CGF, CheckRet, Msg, ClangSrc->getExprLoc());
++}
++
++} // namespace Crunch
+diff --git a/lib/CodeGen/Crunch/Check.h b/lib/CodeGen/Crunch/Check.h
+new file mode 100644
+index 0000000..2d8d9af
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Check.h
+@@ -0,0 +1,53 @@
++#ifndef LLVM_CLANG_LIB_CODEGEN_CRUNCH_CHECK_H
++#define LLVM_CLANG_LIB_CODEGEN_CRUNCH_CHECK_H
++
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++#include <cstring>
++
++#include "Crunch.h"
++
++namespace Crunch {
++
++// Which libcrunch function we need to call to check this type.
++enum CheckFunctionKind : unsigned int {
++  CT_NoCheck,
++  CT_IsA,
++  CT_Named,
++  CT_PointerOfDegree,
++  CT_FunctionRefining
++};
++
++class Check {
++private:
++  clang::CodeGen::CodeGenFunction &CGF;
++  clang::CodeGen::CGBuilderTy &Builder;
++  llvm::LLVMContext &VMContext;
++  const clang::Expr *ClangSrc;
++  llvm::Value *Src;
++  clang::QualType &DestClangTy;
++
++  inline llvm::Module &getModule() {
++    return CGF.CGM.getModule();
++  }
++
++  clang::QualType PointeeTy;
++
++  CheckFunctionKind CheckFunKind;
++  std::string CrunchTypeName;
++  int PointerDegree;
++
++  llvm::Value *getUniqtypeVariable();
++  llvm::Constant *getCheckFunction(llvm::Type *);
++
++public:
++  Check(clang::CodeGen::CodeGenFunction &, const clang::Expr *,
++        llvm::Value *, clang::QualType &);
++  void emit();
++};
++
++bool sloppyFunctionPointers();
++
++} // namespace Crunch
++
++#endif
+diff --git a/lib/CodeGen/Crunch/Crunch.cpp b/lib/CodeGen/Crunch/Crunch.cpp
+new file mode 100644
+index 0000000..69d1897
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Crunch.cpp
+@@ -0,0 +1,306 @@
++#include <assert.h>
++
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++#include "llvm/IR/Constants.h"
++#include "llvm/IR/Function.h"
++#include "llvm/IR/GlobalVariable.h"
++#include "llvm/IR/Module.h"
++
++#include <cstring>
++#include <iostream>
++#include <unordered_map>
++
++#include "Crunch/Check.h"
++#include "Crunch/Crunch.h"
++#include "Crunch/Emit.h"
++
++using namespace clang;
++using namespace CodeGen;
++
++namespace Crunch {
++
++using clang::BuiltinType;
++
++static std::string getBuiltinTypeName(const BuiltinType *Ty) {
++  switch (Ty->getKind()) {
++    case BuiltinType::Void:       return "void";
++    case BuiltinType::Bool:       return "bool";
++    case BuiltinType::Char_S:     return "signed_char";
++    case BuiltinType::Char_U:     return "unsigned_char";
++    case BuiltinType::SChar:      return "signed_char";
++    case BuiltinType::UChar:      return "unsigned_char";
++    case BuiltinType::WChar_S:    return "wchar_t";
++    case BuiltinType::WChar_U:    return "unsigned_wchar_t";
++    case BuiltinType::Char16:     return "char16_t";
++    case BuiltinType::Char32:     return "char32_t";
++    case BuiltinType::UShort:     return "unsigned_short_int";
++    case BuiltinType::Short:      return "short_int";
++    case BuiltinType::UInt:       return "unsigned_int";
++    case BuiltinType::Int:        return "int";
++    case BuiltinType::ULong:      return "unsigned_long_int";
++    case BuiltinType::Long:       return "long_int";
++    case BuiltinType::ULongLong:  return "unsigned_long_long_int";
++    case BuiltinType::LongLong:   return "long_long_int";
++    case BuiltinType::Int128:     return "int128_t";
++    case BuiltinType::UInt128:    return "uint128_t";
++    case BuiltinType::Half:       return "__fp16";
++    case BuiltinType::Float:      return "float";
++    case BuiltinType::Double:     return "double";
++    case BuiltinType::LongDouble: return "long_double";
++    case BuiltinType::NullPtr:    return "__PTR_void";
++    default:                      break;
++  }
++
++  return "UNKNOWN";
++}
++
++struct TypeParse {
++  std::string         UniqtypeName;
++  CheckFunctionKind   CheckFunKind;
++  int                 PointerDegree;
++};
++
++/* Recurse down the type structure, returning the string used by libcrunch to
++ * represent that type, and finding out which libcrunch function needs to be
++ * called to check it. */
++static TypeParse parseType_actual(const clang::QualType &NonCanonicalTy) {
++  // Remove typedefs.
++  auto Ty = NonCanonicalTy.getCanonicalType();
++
++  static std::unordered_map<const clang::Type *, TypeParse> History;
++  const clang::Type *TypePtr = Ty.getTypePtr();
++  if (History.find(TypePtr) != History.end()) {
++    return History[TypePtr];
++  }
++
++  clang::LangOptions langOpts;
++  clang::PrintingPolicy printPol(langOpts);
++  TypeParse Ret;
++  Ret.UniqtypeName = "__UNKNOWN_TYPE__";
++  Ret.CheckFunKind = CT_IsA;
++  Ret.PointerDegree = 0;
++
++  if (auto ArrayTy = dyn_cast<clang::ArrayType>(Ty)) {
++    Ty = ArrayTy->getElementType();
++  }
++
++  if (Ty->isBuiltinType()) {
++    auto BTy = clang::cast<clang::BuiltinType>(Ty);
++    if (BTy->isVoidType()) {
++      Ret.CheckFunKind = CT_PointerOfDegree;
++    } else {
++      Ret.CheckFunKind = CT_IsA;
++    }
++    Ret.UniqtypeName = getBuiltinTypeName(BTy);
++
++  } else if (Ty->isRecordType()) {
++    auto RTy = Ty->getAsStructureType();
++    auto Decl = RTy->getDecl();
++    Ret.UniqtypeName = Decl->getName().str();
++    /* Crunchcc generates a __named_a check when there is no definition, or a
++     * __is_a check otherwise. */
++    if (Decl->getDefinition() == nullptr) {
++      Ret.CheckFunKind = CT_Named;
++    } else {
++      Ret.CheckFunKind = CT_IsA;
++    }
++    Ret.PointerDegree = 0;
++
++  } else if (Ty->isPointerType()) {
++    clang::QualType PtrTy = Ty->getPointeeType();
++    TypeParse Pointee = parseType_actual(PtrTy);
++    Ret.UniqtypeName = "__PTR_" + Pointee.UniqtypeName;
++    Ret.CheckFunKind = Pointee.CheckFunKind;
++    Ret.PointerDegree = Pointee.PointerDegree + 1;
++
++  } else if (Ty->isFunctionProtoType()) {
++    auto FTy = clang::cast<const clang::FunctionProtoType>(Ty);
++    Ret.UniqtypeName = "__FUN_FROM_";
++
++    int NumParams = FTy->getNumParams();
++    for (int i = 0; i < NumParams; ++i) {
++      Ret.UniqtypeName += "__ARG" + std::to_string(i) + "_";
++      Ret.UniqtypeName += parseType_actual(FTy->getParamType(i)).UniqtypeName;
++    }
++
++    auto ReturnType = FTy->getReturnType();
++    Ret.UniqtypeName += "__FUN_TO_"
++                     + parseType_actual(ReturnType).UniqtypeName;
++    Ret.CheckFunKind = CT_FunctionRefining;
++    Ret.PointerDegree = 0;
++
++  } else {
++    std::cerr << "Unknown type class: ";
++    Ty->dump();
++  }
++
++  assert(Ret.CheckFunKind == CT_IsA ||
++         Ret.CheckFunKind == CT_Named ||
++         Ret.CheckFunKind == CT_FunctionRefining ||
++         Ret.CheckFunKind == CT_PointerOfDegree);
++
++  History[TypePtr] = Ret;
++  return Ret;
++}
++
++// Wrapper to skip checks to 'void *' and 'char *'.
++std::string parseType(const clang::QualType &Ty,
++                      CheckFunctionKind *CheckFunResult,
++                      int *PointerDegree)
++{
++  if (Ty->isVoidType() || Ty->isCharType()) {
++    if (CheckFunResult) {
++      *CheckFunResult = CT_NoCheck;
++    }
++    return "ERROR";
++  }
++
++  TypeParse Parse = parseType_actual(Ty);
++
++  if (CheckFunResult) {
++    *CheckFunResult = Parse.CheckFunKind;
++  }
++
++  if (PointerDegree) {
++    *PointerDegree = Parse.PointerDegree;
++  }
++
++  return Parse.UniqtypeName;
++}
++
++std::string getUniqtypeName(const clang::QualType &Ty) {
++  return "__uniqtype__" + parseType_actual(Ty).UniqtypeName;
++}
++
++void emitCastCheck(CodeGenFunction &CGF, const clang::Expr *ClangSrc,
++                   llvm::Value *Src, clang::QualType &DestClangTy)
++{
++  Check c(CGF, ClangSrc, Src, DestClangTy);
++  c.emit();
++}
++
++llvm::Constant *getSizeofFunction(CodeGen::CodeGenFunction &CGF,
++                                  llvm::Value **Args)
++{
++  llvm::Type *ArgTy[2];
++  llvm::Module &TheModule = CGF.CGM.getModule();
++  const std::string FunName = "__crunch_sizeof__";
++  ArgTy[0] = Args[0]->getType();
++  // This function will return its second argument, so the types need to match.
++  ArgTy[1] = Args[1]->getType();
++  llvm::Type *RetTy = ArgTy[1];
++
++  llvm::ArrayRef<llvm::Type *> ArgTy_ar(const_cast<llvm::Type **>(ArgTy), 2);
++  llvm::FunctionType *FunTy = llvm::FunctionType::get(RetTy, ArgTy_ar, false);
++
++  return TheModule.getOrInsertFunction(FunName, FunTy);
++}
++
++/* We need to preserve sizeof expressions (instead of just returning a number)
++ * so that their type ends up in the LLVM IR. */
++llvm::Value *markSizeofExpr(CodeGen::CodeGenFunction &CGF,
++                            const clang::Expr *E, llvm::Value *ActualValue)
++{
++  if (!isEnabled(CGF)) {
++    return ActualValue;
++  }
++
++  clang::QualType ArgType;
++
++  if (auto SizeofExpr = dyn_cast<clang::UnaryExprOrTypeTraitExpr>(E)) {
++    auto Kind = SizeofExpr->getKind();
++    if (Kind != clang::UETT_SizeOf) {
++      return ActualValue;
++    }
++    ArgType = SizeofExpr->getTypeOfArgument();
++
++  } else if (auto OffsetOfExpr = dyn_cast<clang::OffsetOfExpr>(E)) {
++    ArgType = OffsetOfExpr->getTypeSourceInfo()->getType();
++  } else {
++    return ActualValue;
++  }
++
++  std::string TypeDesc = parseType_actual(ArgType).UniqtypeName;
++
++  if (TypeDesc.size() == 0) { // Anonymous struct, for example.
++    return ActualValue;
++  }
++
++  llvm::Value *Args[2];
++  Args[0] = llvm::ConstantDataArray::getString(CGF.getLLVMContext(), TypeDesc);
++  Args[1] = ActualValue;
++  llvm::Constant *Fun = getSizeofFunction(CGF, Args);
++
++  return CGF.Builder.CreateCall(Fun, Args);
++}
++
++static void getArgValues(const CodeGen::CallArgList &ArgList,
++                         std::vector<llvm::Value *> *Ret)
++{
++  for (auto it = ArgList.begin(); it != ArgList.end(); ++it) {
++    if ((*it).RV.isScalar()) {
++      Ret->push_back((*it).RV.getScalarVal());
++    } else if ((*it).RV.isAggregate()) {
++      Ret->push_back((*it).RV.getAggregateAddr());
++    } else { // if (RV.isComplex())
++      assert(false && "RValue not scalar or aggregate?");
++    }
++  }
++}
++
++static llvm::Constant *getCheckArgsFun(CodeGen::CodeGenFunction &CGF,
++                                       const std::vector<llvm::Value *> &Args)
++{
++  llvm::Module &TheModule = CGF.CGM.getModule();
++
++  std::vector<llvm::Type *> ArgTy;
++  for (auto it = Args.begin(); it != Args.end(); ++it) {
++    ArgTy.push_back((*it)->getType());
++  }
++  llvm::Type *RetTy = llvm::Type::getInt32Ty(CGF.getLLVMContext());
++
++  llvm::ArrayRef<llvm::Type *> ArgTy_ar(ArgTy);
++  llvm::FunctionType *FunTy = llvm::FunctionType::get(RetTy, ArgTy_ar, false);
++
++  return TheModule.getOrInsertFunction("__check_args_internal", FunTy);
++}
++
++void checkCallArgs(CodeGen::CodeGenFunction &CGF, const clang::CallExpr *E,
++                   llvm::Value *Callee, CodeGen::CallArgList &ArgList)
++{
++  if (!isEnabled(CGF) || !sloppyFunctionPointers() ||
++      E->getDirectCallee() != nullptr) // Ignore direct calls.
++    return;
++
++  std::vector<llvm::Value *> Args;
++  Args.push_back(Callee);
++
++  auto IntTy = llvm::Type::getInt32Ty(CGF.getLLVMContext());
++  Args.push_back(llvm::ConstantInt::get(IntTy, ArgList.size()));
++
++  getArgValues(ArgList, &Args);
++
++  llvm::Constant *Fun = getCheckArgsFun(CGF, Args);
++  llvm::Value *CheckRet = CGF.Builder.CreateCall(Fun, Args, "args_check");
++
++  emitAssert(CGF, CheckRet, "__check_args_internal()", E->getExprLoc());
++}
++
++// Emit an __is_a check on the return value.
++void checkCallRet(CodeGen::CodeGenFunction &CGF,
++                  const clang::CallExpr *E, llvm::Value *Ret)
++{
++  if (!isEnabled(CGF) || !sloppyFunctionPointers() ||
++      E->getDirectCallee() != nullptr) // Ignore direct calls.
++    return;
++
++  clang::QualType RetType = E->getCallReturnType(CGF.getContext());
++  if (!RetType->isPointerType()) { // We can't check non-pointer return types.
++    return;
++  }
++
++  emitCastCheck(CGF, E, Ret, RetType);
++}
++
++} // namespace Crunch
+diff --git a/lib/CodeGen/Crunch/Crunch.h b/lib/CodeGen/Crunch/Crunch.h
+new file mode 100644
+index 0000000..bf0d33b
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Crunch.h
+@@ -0,0 +1,36 @@
++#ifndef LLVM_CLANG_LIB_CODEGEN_CRUNCH_CRUNCH_H
++#define LLVM_CLANG_LIB_CODEGEN_CRUNCH_CRUNCH_H
++
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++#include <cstring>
++
++namespace Crunch {
++
++enum CheckFunctionKind : unsigned int;
++
++void emitCastCheck(clang::CodeGen::CodeGenFunction &, const clang::Expr *,
++                   llvm::Value *, clang::QualType &);
++
++void checkCallArgs(clang::CodeGen::CodeGenFunction &, const clang::CallExpr *,
++                   llvm::Value *, clang::CodeGen::CallArgList &);
++
++void checkCallRet(clang::CodeGen::CodeGenFunction &,
++                  const clang::CallExpr *, llvm::Value *);
++
++llvm::Value *markSizeofExpr(clang::CodeGen::CodeGenFunction &,
++                            const clang::Expr *, llvm::Value *);
++
++std::string parseType(const clang::QualType &,
++                      CheckFunctionKind *, int *);
++
++std::string getUniqtypeName(const clang::QualType &);
++
++extern inline bool isEnabled(clang::CodeGen::CodeGenFunction &CGF) {
++  return CGF.SanOpts.has(clang::SanitizerKind::Allocs) ||
++         CGF.SanOpts.has(clang::SanitizerKind::Crunch);
++}
++
++} // namespace Crunch
++
++#endif
+diff --git a/lib/CodeGen/Crunch/Emit.cpp b/lib/CodeGen/Crunch/Emit.cpp
+new file mode 100644
+index 0000000..bb608fc
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Emit.cpp
+@@ -0,0 +1,86 @@
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++#include "llvm/IR/Constants.h"
++#include "llvm/IR/Function.h"
++#include "llvm/IR/GlobalVariable.h"
++#include "llvm/IR/Module.h"
++
++#include <vector>
++
++#include "Crunch/Emit.h"
++
++namespace Crunch {
++
++/* Emit the 'false' case of the '__inline_assert' macro, i.e.:
++ * __assert_fail(...); */
++static void emitAssertFail(clang::CodeGen::CodeGenFunction &CGF,
++                           const std::string &Message,
++                           const clang::SourceLocation &Loc)
++{
++  auto &VMContext = CGF.getLLVMContext();
++  auto &TheModule = CGF.CGM.getModule();
++
++  std::vector<llvm::Value *> Args;
++  Args.push_back(llvm::ConstantDataArray::getString(VMContext, Message));
++
++  clang::SourceManager &SM = CGF.getContext().getSourceManager();
++  Args.push_back(llvm::ConstantDataArray::getString(VMContext,
++                                                    SM.getBufferName(Loc)));
++  Args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
++                                        SM.getPresumedLineNumber(Loc)));
++  Args.push_back(llvm::ConstantDataArray::getString(VMContext,
++                                                    CGF.CurFn->getName()));
++
++  std::vector<llvm::Type *> ArgTy;
++  for (auto it = Args.begin(); it != Args.end(); ++it) {
++    ArgTy.push_back((*it)->getType());
++  }
++  llvm::Type *RetTy = llvm::Type::getVoidTy(VMContext);
++  llvm::ArrayRef<llvm::Type *> ArgTy_ar(ArgTy);
++
++  llvm::FunctionType *FunTy = llvm::FunctionType::get(RetTy, ArgTy_ar, false);
++
++  llvm::Constant *Fun = TheModule.getOrInsertFunction("__assert_fail", FunTy);
++  CGF.Builder.CreateCall(Fun, Args);
++}
++
++/* Emit the functionality of the '__inline_assert' macro, i.e.:
++ * if (!Pred) { __assert_fail(...); } */
++void emitAssert(clang::CodeGen::CodeGenFunction &CGF, llvm::Value *Pred,
++                const std::string &Message, const clang::SourceLocation &Loc)
++{
++  llvm::BasicBlock *StartBB, *BodyBB, *ExitBB;
++  StartBB = CGF.Builder.GetInsertBlock();
++
++  // Negate the condition by comparing to zero.
++  Pred = CGF.Builder.CreateICmpEQ(Pred,
++                                  llvm::ConstantInt::get(Pred->getType(), 0),
++                                  "crunchAssert.cond");
++
++  BodyBB = CGF.createBasicBlock("crunchAssert.body", CGF.CurFn);
++  ExitBB = CGF.createBasicBlock("crunchAssert.exit");
++
++  CGF.Builder.CreateCondBr(Pred, BodyBB, ExitBB);
++
++  // Generate the 'if' body
++  CGF.Builder.SetInsertPoint(BodyBB);
++  emitAssertFail(CGF, Message, Loc);
++  CGF.Builder.CreateBr(ExitBB);
++
++  CGF.CurFn->getBasicBlockList().push_back(ExitBB);
++  CGF.Builder.SetInsertPoint(ExitBB);
++}
++
++void emitIncrementCheckCount(clang::CodeGen::CodeGenFunction &CGF) {
++  const llvm::StringRef CCName = "__libcrunch_begun";
++  llvm::Type *CCType = llvm::Type::getInt32Ty(CGF.getLLVMContext());
++  auto &TheModule = CGF.CGM.getModule();
++  llvm::Constant *CheckCount = TheModule.getOrInsertGlobal(CCName, CCType);
++  llvm::Constant *One = llvm::ConstantInt::get(CCType, 1);
++
++  llvm::LoadInst *CCLoaded = CGF.Builder.CreateLoad(CheckCount);
++  llvm::Value *CCAddOne = CGF.Builder.CreateAdd(CCLoaded, One, "CheckCount");
++  CGF.Builder.CreateStore(CCAddOne, CheckCount);
++}
++
++} // namespace Crunch
+diff --git a/lib/CodeGen/Crunch/Emit.h b/lib/CodeGen/Crunch/Emit.h
+new file mode 100644
+index 0000000..e698e5e
+--- /dev/null
++++ b/lib/CodeGen/Crunch/Emit.h
+@@ -0,0 +1,16 @@
++#ifndef LLVM_CLANG_LIB_CODEGEN_CRUNCH_EMIT_H
++#define LLVM_CLANG_LIB_CODEGEN_CRUNCH_EMIT_H
++
++#include "CodeGenFunction.h"
++#include "CodeGenModule.h"
++
++namespace Crunch {
++
++void emitAssert(clang::CodeGen::CodeGenFunction &, llvm::Value *,
++                const std::string &, const clang::SourceLocation &);
++
++void emitIncrementCheckCount(clang::CodeGen::CodeGenFunction &);
++
++} // namespace Crunch
++
++#endif
+diff --git a/lib/Driver/Tools.cpp b/lib/Driver/Tools.cpp
+index 7b661a7..3698ecb 100644
+--- a/lib/Driver/Tools.cpp
++++ b/lib/Driver/Tools.cpp
+@@ -2334,6 +2334,10 @@ static bool addSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
+   // to be dynamic to be sure we export sanitizer interface functions.
+   if (AddExportDynamic)
+     CmdArgs.push_back("-export-dynamic");
++
++  if (TC.getSanitizerArgs().needsCrunchRt())
++    CmdArgs.push_back("-lcrunch_preload");
++
+   return !StaticRuntimes.empty();
+ }
+ 
+-- 
+2.1.4
+

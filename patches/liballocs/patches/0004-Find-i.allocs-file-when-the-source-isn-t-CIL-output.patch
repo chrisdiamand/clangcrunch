@@ -1,0 +1,32 @@
+From 66b70c1223c4c189f4fef5b7b305bd25d9f8039a Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Fri, 27 Mar 2015 00:25:44 +0000
+Subject: [PATCH 04/11] Find i.allocs file when the source isn't CIL output.
+
+If it has been compiled with clang, there is no '%.cil.c' file. So if searching
+for '.cil.c' fails, try just searching for '.c'.
+---
+ tools/lang/c/bin/c-gather-srcallocs | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/tools/lang/c/bin/c-gather-srcallocs b/tools/lang/c/bin/c-gather-srcallocs
+index fe67a71..ad3a8c8 100755
+--- a/tools/lang/c/bin/c-gather-srcallocs
++++ b/tools/lang/c/bin/c-gather-srcallocs
+@@ -10,6 +10,13 @@ cu_compdir="$4"
+ test -n "$cu_compdir" || (echo "args: <sourcepath> <obj> <cu_fname> <cu_compdir>" 1>&2; false) || exit 1
+ 
+ cu_allocspath="$( echo "$cu_sourcepath" | grep '\.cil\.c$' | sed 's/\.cil\.c/.i.allocs/' )"
++
++# If we're using clang instead of CIL then the source path will just be '%.c',
++# not '%.cil.c'.
++if [[ -z "$cu_allocspath" ]]; then
++    cu_allocspath="$( echo "$cu_sourcepath" | grep '\.c$' | sed 's/\.c/.i.allocs/' )"
++fi
++
+ if [[ ! -r "$cu_allocspath" ]]; then
+     echo "Warning: missing expected allocs file ($cu_allocspath) for source file: $cu_sourcepath" 1>&2
+ else
+-- 
+2.1.4
+

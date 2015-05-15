@@ -1,0 +1,25 @@
+From 87ae696c9dad304811e673299dd33a62588efdfb Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Fri, 27 Mar 2015 00:30:04 +0000
+Subject: [PATCH 03/11] Use c-gather-srcallocs for C99 (Dwarf3) programs.
+
+---
+ tools/gather-srcallocs.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/gather-srcallocs.sh b/tools/gather-srcallocs.sh
+index ad3b7a4..01066da 100755
+--- a/tools/gather-srcallocs.sh
++++ b/tools/gather-srcallocs.sh
+@@ -52,7 +52,7 @@ cat "$all_obj_allocs_file" | cut -f1 | sort | uniq | while read obj rest; do
+         esac
+         cu_language_num="$( echo "$cu_language_fullstr" | tr -s '[[:blank:]]' '\t' | cut -f1 )"
+         case "$cu_language_num" in
+-            (1|2) # DW_LANG_C89, DW_LANG_C
++            (1|2|12) # DW_LANG_C89, DW_LANG_C, DW_LANG_C99
+                 $(dirname "$0")/lang/c/bin/c-gather-srcallocs "$cu_sourcepath" "$obj" "$cu_fname" "$cu_compdir"
+             ;;
+             (*) # unknown
+-- 
+2.1.4
+

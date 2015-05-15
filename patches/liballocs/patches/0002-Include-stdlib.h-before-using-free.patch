@@ -1,0 +1,25 @@
+From d4b06bfb9e352fa063797481369db66518b68964 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Mon, 30 Mar 2015 21:01:36 +0100
+Subject: [PATCH 02/11] Include stdlib.h before using free().
+
+---
+ include/memtable.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/memtable.h b/include/memtable.h
+index 18847c3..9f9f225 100644
+--- a/include/memtable.h
++++ b/include/memtable.h
+@@ -10,6 +10,8 @@
+ extern "C" {
+ #endif
+ 
++#include <stdlib.h>
++
+ #if defined (X86_64) || (defined (__x86_64__))
+ #define BIGGEST_MMAP_ALLOWED (1ULL<<46)
+ #else
+-- 
+2.1.4
+

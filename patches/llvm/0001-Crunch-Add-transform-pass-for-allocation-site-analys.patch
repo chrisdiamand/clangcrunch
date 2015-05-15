@@ -1,0 +1,1072 @@
+From 5832f37fefcfe1f889bd00196c3d6166280b0a63 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Thu, 9 Apr 2015 16:43:04 +0100
+Subject: [PATCH] Crunch: Add transform pass for allocation site analysis.
+
+---
+ include/llvm/Transforms/AllocSites/AllocFunction.h |  39 +++
+ include/llvm/Transforms/AllocSites/AllocSites.h    |  10 +
+ include/llvm/Transforms/AllocSites/ArithType.h     | 113 ++++++++
+ lib/Transforms/AllocSites/AllocFunction.cpp        | 111 ++++++++
+ lib/Transforms/AllocSites/AllocPass.cpp            | 317 +++++++++++++++++++++
+ lib/Transforms/AllocSites/ArithType.cpp            | 302 ++++++++++++++++++++
+ lib/Transforms/AllocSites/CMakeLists.txt           |  10 +
+ lib/Transforms/{ => AllocSites}/LLVMBuild.txt      |  12 +-
+ lib/Transforms/AllocSites/Makefile                 |  15 +
+ lib/Transforms/CMakeLists.txt                      |   1 +
+ lib/Transforms/LLVMBuild.txt                       |   2 +-
+ lib/Transforms/Makefile                            |   2 +-
+ tools/opt/CMakeLists.txt                           |   1 +
+ 13 files changed, 926 insertions(+), 9 deletions(-)
+ create mode 100644 include/llvm/Transforms/AllocSites/AllocFunction.h
+ create mode 100644 include/llvm/Transforms/AllocSites/AllocSites.h
+ create mode 100644 include/llvm/Transforms/AllocSites/ArithType.h
+ create mode 100644 lib/Transforms/AllocSites/AllocFunction.cpp
+ create mode 100644 lib/Transforms/AllocSites/AllocPass.cpp
+ create mode 100644 lib/Transforms/AllocSites/ArithType.cpp
+ create mode 100644 lib/Transforms/AllocSites/CMakeLists.txt
+ copy lib/Transforms/{ => AllocSites}/LLVMBuild.txt (73%)
+ create mode 100644 lib/Transforms/AllocSites/Makefile
+
+diff --git a/include/llvm/Transforms/AllocSites/AllocFunction.h b/include/llvm/Transforms/AllocSites/AllocFunction.h
+new file mode 100644
+index 0000000..bd1fe26
+--- /dev/null
++++ b/include/llvm/Transforms/AllocSites/AllocFunction.h
+@@ -0,0 +1,39 @@
++#ifndef LLVM_TRANSFORM_ALLOCSITES_ALLOCFUNCTION_H
++#define LLVM_TRANSFORM_ALLOCSITES_ALLOCFUNCTION_H
++
++#include <map>
++#include <string>
++
++namespace Crunch {
++
++class AllocFunction;
++
++typedef std::map<std::string, AllocFunction *> AllocFunctionMap;
++
++class AllocFunction {
++private:
++  unsigned int SizeArgIndex = 0;
++  std::string Name = "", Args = "", Return = "";
++  bool valid = false;
++
++  void parseDescr(const std::string &);
++  AllocFunction(const std::string &);
++
++  static AllocFunctionMap Functions;
++
++  static void add(const std::string &);
++  static void addFromEnvironment(const std::string &);
++  static void addFunctions();
++
++public:
++
++  unsigned int getSizeArg();
++  std::string getName();
++
++  static AllocFunctionMap &getAll();
++  static AllocFunction *get(const std::string &);
++};
++
++} // namespace Crunch
++
++#endif // LLVM_TRANSFORM_ALLOCSITES_ALLOCFUNCTION_H
+diff --git a/include/llvm/Transforms/AllocSites/AllocSites.h b/include/llvm/Transforms/AllocSites/AllocSites.h
+new file mode 100644
+index 0000000..4a1ee12
+--- /dev/null
++++ b/include/llvm/Transforms/AllocSites/AllocSites.h
+@@ -0,0 +1,10 @@
++#ifndef LLVM_TRANSFORMS_CRUNCH_H
++#define LLVM_TRANSFORMS_CRUNCH_H
++
++#include "llvm/Pass.h"
++
++namespace llvm {
++  llvm::ModulePass *createAllocSitesSanitizerPass();
++}
++
++#endif // LLVM_TRANSFORMS_CRUNCH_H
+diff --git a/include/llvm/Transforms/AllocSites/ArithType.h b/include/llvm/Transforms/AllocSites/ArithType.h
+new file mode 100644
+index 0000000..cad3a4b
+--- /dev/null
++++ b/include/llvm/Transforms/AllocSites/ArithType.h
+@@ -0,0 +1,113 @@
++#ifndef LLVM_TRANSFORM_ALLOCSITES_COMPOSITE_H
++#define LLVM_TRANSFORM_ALLOCSITES_COMPOSITE_H
++
++#include <llvm/Support/raw_ostream.h>
++
++#include <cstring>
++#include <iostream>
++#include <set>
++
++namespace Crunch {
++
++/* In order to do arithmetic on `sizeof' types, represent them as sums of
++ * fractions. This is _not_ recursive - there is no point having a full tree
++ * representation since most things don't make sense with types anyway. */
++
++class BaseTypePtr {
++public:
++  const std::string Base;
++  const int PointerDegree;
++
++  const std::string str(bool) const;
++  const std::string strComposite() const;
++  const std::string strUniqtype() const;
++
++  inline bool operator==(const BaseTypePtr &Other) const {
++    return Base == Other.Base;
++  }
++
++  inline bool operator!=(const BaseTypePtr &Other) const {
++    return !(*this == Other);
++  }
++
++  inline bool operator<(const BaseTypePtr &Other) const {
++    return Base < Other.Base;
++  }
++
++  BaseTypePtr(const std::string &B, const int P) :
++    Base(B), PointerDegree(P) {};
++};
++
++class TypeTerm {
++private:
++  std::set<BaseTypePtr> Top, Bottom;
++
++  void mulBase(const BaseTypePtr &);
++  void divBase(const BaseTypePtr &);
++
++public:
++
++  inline TypeTerm(BaseTypePtr Base) {
++    Top.insert(Base);
++  }
++  inline TypeTerm() {}
++
++  inline bool operator==(const TypeTerm &Other) const {
++    return Top == Other.Top && Bottom == Other.Bottom;
++  }
++
++  inline bool operator<(const TypeTerm &Other) const {
++    return str(false) < Other.str(false);
++  }
++
++  const std::string str(bool) const;
++  const TypeTerm mul(const TypeTerm &) const;
++  const TypeTerm recip() const;
++
++  inline bool isVoid() const {
++    return Top.size() == 0 && Bottom.size() == 0;
++  }
++};
++
++class ArithType {
++private:
++
++  // The order matters for addition.
++  std::vector<TypeTerm> Pos;
++  std::set<TypeTerm> Neg;
++
++  void addTerm(const TypeTerm &);
++  void subTerm(const TypeTerm &);
++  const ArithType recip() const;
++
++public:
++
++  ArithType(std::string &);
++  ArithType(const ArithType &T);
++  // An empty type shows that no type was found.
++  inline ArithType(void) {};
++
++  const ArithType add(const ArithType &) const;
++  const ArithType sub(const ArithType &) const;
++  const ArithType mul(const ArithType &) const;
++  const ArithType div(const ArithType &) const;
++
++  bool isVoid() const;
++  bool isComposite() const;
++
++  bool operator==(const ArithType &) const;
++
++  inline bool operator!=(const ArithType &Other) const {
++    return !(*this == Other);
++  }
++
++  ArithType &operator=(const ArithType &);
++
++  const std::string str() const;
++  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &, const ArithType &);
++  friend std::ostream &operator<<(std::ostream &, const ArithType &);
++};
++
++} // namespace Composite
++
++#endif // LLVM_TRANSFORM_ALLOCSITES_COMPOSITE_H
+diff --git a/lib/Transforms/AllocSites/AllocFunction.cpp b/lib/Transforms/AllocSites/AllocFunction.cpp
+new file mode 100644
+index 0000000..3bf8a65
+--- /dev/null
++++ b/lib/Transforms/AllocSites/AllocFunction.cpp
+@@ -0,0 +1,111 @@
++#include <assert.h>
++#include <iostream>
++#include <regex>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <string>
++
++#include "llvm/Transforms/AllocSites/AllocFunction.h"
++
++namespace Crunch {
++
++std::map<std::string, AllocFunction *> AllocFunction::Functions;
++
++// Parse a libcrunch-style allocation function description.
++void AllocFunction::parseDescr(const std::string &Descr) {
++  std::smatch sm;
++  const std::regex Expr("([a-zA-Z_][a-zA-Z0-9_]*)\\(([a-zA-Z]*)\\)([a-zA-Z])");
++  std::regex_match(Descr, sm, Expr);
++  if (sm.size() == 0) {
++    std::cerr << "Error: '" << Descr
++              << "' not a valid allocation function descriptor.\n";
++    valid = false;
++    return;
++  }
++
++  assert(sm.size() == 4);
++
++  Name = sm[1];
++  Args = sm[2];
++  Return = sm[3];
++
++  SizeArgIndex = 0;
++  for (size_t i = 0; i < Args.size(); ++i) {
++    if (Args.at(i) == 'Z') {
++      SizeArgIndex = i;
++    }
++  }
++}
++
++AllocFunction::AllocFunction(const std::string &Descr) {
++  valid = true;
++  parseDescr(Descr);
++}
++
++std::string AllocFunction::getName() {
++  return Name;
++}
++
++void AllocFunction::add(const std::string &Descr) {
++  AllocFunction *AF = new AllocFunction(Descr);
++  if (AF->valid) {
++    Functions[AF->Name] = AF;
++  } else {
++    delete AF;
++  }
++}
++
++void AllocFunction::addFromEnvironment(const std::string &EnvVar) {
++  char *EnvValue = getenv(EnvVar.c_str());
++  char *saveptr;
++  if (EnvValue == nullptr) {
++    return;
++  }
++
++  // Split into whitespace-separated tokens
++  char *Token = strtok_r(EnvValue, " \t,", &saveptr);
++  while (Token != NULL) {
++    std::string Descr(Token);
++    add(Descr);
++    Token = strtok_r(NULL, " \t,", &saveptr);
++  }
++}
++
++void AllocFunction::addFunctions() {
++  if (Functions.size() > 0) {
++    return;
++  }
++
++  add("alloca(Z)p");
++  add("malloc(Z)p");
++  add("calloc(zZ)p");
++  add("realloc(pZ)p");
++  add("memalign(zZ)p");
++
++  addFromEnvironment("LIBALLOCS_ALLOC_FNS");
++  addFromEnvironment("LIBALLOCS_SUBALLOC_FNS");
++  addFromEnvironment("LIBALLOCS_ALLOCSZ_FNS");
++}
++
++AllocFunction *AllocFunction::get(const std::string &Name) {
++  addFunctions();
++
++  auto it = Functions.find(Name);
++
++  if (it == Functions.end()) {
++    return nullptr;
++  }
++  return it->second;
++}
++
++unsigned int AllocFunction::getSizeArg() {
++  return SizeArgIndex;
++}
++
++AllocFunctionMap &AllocFunction::getAll() {
++  addFunctions();
++  return Functions;
++}
++
++} // namespace Crunch
+diff --git a/lib/Transforms/AllocSites/AllocPass.cpp b/lib/Transforms/AllocSites/AllocPass.cpp
+new file mode 100644
+index 0000000..ec201e6
+--- /dev/null
++++ b/lib/Transforms/AllocSites/AllocPass.cpp
+@@ -0,0 +1,317 @@
++#include "llvm/ADT/Statistic.h"
++#include "llvm/IR/Constants.h"
++#include "llvm/IR/DebugInfoMetadata.h"
++#include "llvm/IR/DebugLoc.h"
++#include "llvm/IR/DiagnosticInfo.h"
++#include "llvm/IR/Function.h"
++#include "llvm/IR/Instructions.h"
++#include "llvm/IR/LLVMContext.h"
++#include "llvm/IR/Operator.h"
++#include "llvm/Pass.h"
++#include "llvm/Transforms/AllocSites/AllocFunction.h"
++#include "llvm/Transforms/AllocSites/AllocSites.h"
++#include "llvm/Transforms/AllocSites/ArithType.h"
++
++#include <limits.h>
++#include <stdlib.h>
++
++#include <fstream>
++#include <iostream>
++#include <map>
++
++using namespace llvm;
++
++#define DEBUG_TYPE "crunch"
++
++namespace {
++
++static std::string getOutputFName(const std::string &SrcPath) {
++  std::string ExtRemoved = SrcPath.substr(0, SrcPath.length() - 2);
++  return ExtRemoved + ".i.allocs";
++}
++
++static std::map<std::string, std::ofstream *> OpenFiles;
++
++static std::ofstream *openOutputFile(const std::string &FileName) {
++
++  if (OpenFiles.find(FileName) == OpenFiles.end()) {
++    OpenFiles[FileName] = new std::ofstream(FileName,
++                                            std::ios::out | std::ios::trunc);
++  }
++  return OpenFiles[FileName];
++}
++
++static void closeOutputFiles() {
++  for (auto it = OpenFiles.begin(); it != OpenFiles.end(); ++it) {
++    delete it->second;
++  }
++  OpenFiles.clear();
++}
++
++class AllocSite {
++private:
++  llvm::Instruction         *Instr;
++  std::string               Name;
++  const Crunch::ArithType   AllocType;
++
++public:
++  AllocSite(llvm::Instruction *_Instr, std::string _Name,
++            Crunch::ArithType _AllocType) :
++    Instr(_Instr), Name(_Name), AllocType(_AllocType) {};
++
++  void emit(void) {
++    if (AllocType.isVoid()) {
++      errs() << "Warning: Could not infer type from allocation site.\n";
++    }
++
++    auto Loc = Instr->getDebugLoc();
++    if (!Loc) {
++      errs() << "Warning: Cannot find allocation site: "
++             << "Debug info not available.\n";
++      return;
++    }
++
++    unsigned Line = Loc->getLine();
++    const std::string SourcePath = Loc->getScope()->getFile()->getFilename();
++
++    std::string SitesFileName = getOutputFName(SourcePath);
++    std::ofstream &Out = *openOutputFile(SitesFileName);
++
++    char *SourceRealPath = realpath(SourcePath.c_str(), NULL);
++
++    Out << SourceRealPath << "\t" << Line << "\t" << Name << "\t";
++    if (AllocType.isComposite()) {
++      Out << "structure_type dumpallocs_synthetic_";
++      for (char *c = SourceRealPath; *c != '\0'; ++c) {
++        if (*c == '/' || *c == '.') {
++          *c = '_';
++        }
++      }
++      Out << SourceRealPath << "_" << Line << " ";
++    } else {
++      Out << "__uniqtype__";
++    }
++    Out << AllocType << std::endl;
++    Out.flush();
++
++    free(SourceRealPath);
++  }
++};
++
++class ModuleHandler {
++private:
++  llvm::Module            &TheModule;
++  llvm::LLVMContext       &VMContext;
++  llvm::Function          *SizeofMarker;
++  std::vector<AllocSite>  AllocSites;
++
++  Crunch::ArithType calcBinOpType(llvm::BinaryOperator *I,
++                                     const Crunch::ArithType &T1,
++                                     const Crunch::ArithType &T2)
++  {
++    assert(I->getNumOperands() == 2);
++    switch (I->getOpcode()) {
++      case Instruction::Add:
++        return T1.add(T2);
++      case Instruction::Sub:
++        return T1.sub(T2);
++      case Instruction::Mul:
++        return T1.mul(T2);
++      case Instruction::SDiv:
++      case Instruction::UDiv:
++        return T1.div(T2);
++    }
++    return Crunch::ArithType();
++  }
++
++  bool isSizeofMarker(llvm::CallInst *CallI) {
++    return CallI->getCalledValue()->stripPointerCasts() == SizeofMarker;
++  }
++
++  Crunch::ArithType getTypeFromMarker(llvm::CallInst *CallI) {
++    auto TypeArg = cast<ConstantDataArray>(CallI->getArgOperand(0));
++    std::string UniqtypeStr = TypeArg->getAsString();
++    return Crunch::ArithType(UniqtypeStr);
++  }
++
++  Crunch::ArithType getTypeFromCallToSizeofReturningFunc(CallInst *CallI) {
++    llvm::Function *CalledFunc = CallI->getCalledFunction();
++    if (!CalledFunc) {
++      fprintf(stderr,
++              "Warning: Call to indirect function in sizeof expression.\n");
++      return Crunch::ArithType();
++    }
++
++    // Avoid infinite recursion by keeping track of where we've been.
++    static std::set<llvm::Function *> VisitedFuncs;
++    if (VisitedFuncs.find(CalledFunc) != VisitedFuncs.end()) {
++      errs() << "Warning: Recursive sizeof-returning function: \'"
++             << CalledFunc->getName() << "()\'\n";
++      return Crunch::ArithType();
++    }
++    VisitedFuncs.insert(CalledFunc);
++
++    Crunch::ArithType ReturnType;
++
++    /* Find return instructions. We don't need to look through every single
++     * one, since they can only be at the end of basic blocks. */
++    auto &BBList = CalledFunc->getBasicBlockList();
++    for (auto it = BBList.begin();
++         it != BBList.end(); ++it) {
++      it->dump();
++      auto Term = it->getTerminator();
++      if (auto RetI = dyn_cast<ReturnInst>(Term)) {
++        if (auto RetVal = RetI->getReturnValue()) {
++          auto Ty = getType(RetVal);
++          /* If there are multiple return statements with different types,
++           * return void. */
++          if (!ReturnType.isVoid() && ReturnType != Ty) {
++            return Crunch::ArithType();
++          }
++          ReturnType = Ty;
++        }
++      }
++    }
++    return ReturnType;
++  }
++
++  // Recurse backwards down the use-def chain to find out if this has a type.
++  Crunch::ArithType getType(llvm::Value *Val) {
++    // Base case: A potential __crunch_sizeof__ marker call.
++    if (auto CallI = dyn_cast<CallInst>(Val)) {
++      if (isSizeofMarker(CallI)) {
++        return getTypeFromMarker(CallI);
++      } else { // It could be a sizeof-returning function.
++        return getTypeFromCallToSizeofReturningFunc(CallI);
++      }
++    } else if (auto BinI = dyn_cast<BinaryOperator>(Val)) {
++      llvm::Value *V1 = BinI->getOperand(0);
++      llvm::Value *V2 = BinI->getOperand(1);
++      return calcBinOpType(BinI, getType(V1), getType(V2));
++    } else if (auto Inst = dyn_cast<Instruction>(Val)) {
++      for (Use &U : Inst->operands()) {
++        Crunch::ArithType Ty = getType(U.get());
++        if (!Ty.isVoid()) {
++          return Ty;
++        }
++      }
++    }
++    return Crunch::ArithType();
++  }
++
++  /* Recurse the def-use chain of each allocation function, stopping when an
++   * allocation site is reached. */
++  void findAllocSite(llvm::Value *Prev, llvm::Value *Val,
++                     Crunch::AllocFunction *AF)
++  {
++    if (auto CallI = dyn_cast<CallInst>(Val)) {
++      if (Prev != CallI->getCalledValue()) {
++        return;
++      }
++      // We've found an allocation site.
++      assert(AF->getSizeArg() < CallI->getNumArgOperands());
++      llvm::Value *SizeArg = CallI->getArgOperand(AF->getSizeArg());
++      AllocSite AS(CallI, AF->getName(), getType(SizeArg));
++      AllocSites.push_back(AS);
++
++    } else if (auto StoreI = dyn_cast<StoreInst>(Val)) {
++      for (User *U : StoreI->getPointerOperand()->users()) {
++        if (auto LoadI = dyn_cast<LoadInst>(U)) {
++          for (User *LoadU : LoadI->users()) {
++            if (LoadU != StoreI) {
++              findAllocSite(LoadI, LoadU, AF);
++            }
++          }
++        }
++      }
++    }
++  }
++
++public:
++  void run() {
++    if (SizeofMarker == nullptr) {
++      return;
++    }
++
++    AllocSites.clear();
++
++    // Loop through all the allocation functions.
++    for (auto it = Crunch::AllocFunction::getAll().begin();
++         it != Crunch::AllocFunction::getAll().end(); ++it)
++    {
++      llvm::Function *Func = TheModule.getFunction(it->first);
++      if (Func == nullptr) {
++        continue;
++      }
++      for (llvm::User *U : Func->users()) {
++        findAllocSite(Func, U, it->second);
++      }
++    }
++  }
++
++  // Write all the allocation sites out.
++  void emit() {
++    for (auto it = AllocSites.begin(); it != AllocSites.end(); ++it) {
++      it->emit();
++    }
++  }
++
++private:
++  void removeSizeofMarker(llvm::User *U) {
++    auto Call = cast<llvm::CallInst>(U);
++    Value *SizeArg = Call->getArgOperand(1);
++    Call->replaceAllUsesWith(SizeArg);
++    Call->eraseFromParent();
++  }
++
++public:
++  void removeSizeofMarkers() {
++    if (SizeofMarker == nullptr) {
++      return;
++    }
++
++    for (llvm::User *U : SizeofMarker->users()) {
++      if (auto Cast = dyn_cast<llvm::BitCastOperator>(U)) {
++        for (llvm::User *CastUser : Cast->users()) {
++          removeSizeofMarker(CastUser);
++        }
++      } else {
++        removeSizeofMarker(U);
++      }
++    }
++  }
++
++  ModuleHandler(Module &M) :
++    TheModule(M), VMContext(M.getContext())
++  {
++    SizeofMarker = M.getFunction("__crunch_sizeof__");
++  }
++};
++
++struct AllocSitesPass : public ModulePass {
++  static char ID; // Pass identification, replacement for typeid
++  AllocSitesPass() : ModulePass(ID) {}
++
++  bool runOnModule(Module &M) override {
++    ModuleHandler Handler(M);
++    Handler.run();
++    Handler.emit();
++    Handler.removeSizeofMarkers();
++    closeOutputFiles();
++
++    return true;
++  }
++
++  void getAnalysisUsage(AnalysisUsage &AU) const override {
++    AU.setPreservesCFG();
++  }
++};
++
++} // namespace
++
++llvm::ModulePass *llvm::createAllocSitesSanitizerPass() {
++  return new AllocSitesPass();
++}
++
++char AllocSitesPass::ID = 0;
++static RegisterPass<AllocSitesPass> X("allocs", "Dump allocation sites");
+diff --git a/lib/Transforms/AllocSites/ArithType.cpp b/lib/Transforms/AllocSites/ArithType.cpp
+new file mode 100644
+index 0000000..f204525
+--- /dev/null
++++ b/lib/Transforms/AllocSites/ArithType.cpp
+@@ -0,0 +1,302 @@
++#include <iostream>
++
++#include "llvm/Transforms/AllocSites/ArithType.h"
++
++namespace Crunch {
++
++const std::string BaseTypePtr::strComposite() const {
++  std::string Ret = "";
++
++  for (int i = 0; i < PointerDegree; ++i) {
++    Ret += "(pointer_type [type = ";
++  }
++
++  // Replace underscores with spaces
++  for (auto it = Base.begin(); it != Base.end(); ++it) {
++    if (*it == '_') {
++      Ret += "\\ ";
++    } else {
++      Ret += *it;
++    }
++  }
++
++  // Close the brackets
++  for (int i = 0; i < PointerDegree; ++i) {
++    Ret += "];)";
++  }
++
++  return Ret;
++}
++
++const std::string BaseTypePtr::strUniqtype() const {
++  std::string Ret = "";
++  for (int i = 0; i < PointerDegree; ++i) {
++    Ret += "__PTR_";
++  }
++  Ret += Base;
++  return Ret;
++}
++
++const std::string BaseTypePtr::str(bool Composite) const {
++  if (Composite) {
++    return strComposite();
++  } else {
++    return strUniqtype();
++  }
++}
++
++const std::string TypeTerm::str(bool Composite) const {
++  std::string Ret = "";
++  size_t Count = 0;
++
++  for (auto it = Top.begin(); it != Top.end(); ++it) {
++    Ret += it->str(Composite);
++    if (Count++ < Top.size() - 1) {
++      Ret += "_mul_";
++    }
++  }
++
++  for (auto it = Bottom.begin(); it != Bottom.end(); ++it) {
++    Ret += "_div_";
++    Ret += it->str(Composite);
++  }
++  return Ret;
++}
++
++void TypeTerm::mulBase(const BaseTypePtr &Base) {
++  // If it already exists on the bottom, cancel it.
++  auto IsInBottom = std::find(Bottom.begin(), Bottom.end(), Base);
++  if (IsInBottom != Bottom.end()) {
++    Bottom.erase(IsInBottom);
++  } else {
++    Top.insert(Base);
++  }
++}
++
++void TypeTerm::divBase(const BaseTypePtr &Base) {
++  auto IsInTop = std::find(Top.begin(), Top.end(), Base);
++  if (IsInTop != Top.end()) {
++    Top.erase(IsInTop);
++  } else {
++    Bottom.insert(Base);
++  }
++}
++
++const TypeTerm TypeTerm::mul(const TypeTerm &T2) const {
++  TypeTerm Ret(*this);
++
++  for (auto it = T2.Top.begin(); it != T2.Top.end(); ++it) {
++    Ret.mulBase(*it);
++  }
++  for (auto it = T2.Bottom.begin(); it != T2.Bottom.end(); ++it) {
++    Ret.divBase(*it);
++  }
++
++  return Ret;
++}
++
++const TypeTerm TypeTerm::recip() const {
++  TypeTerm Ret;
++
++  Ret.Top = Bottom;
++  Ret.Bottom = Top;
++
++  return Ret;
++}
++
++const std::string ArithType::str() const {
++  if (isVoid()) {
++    return "void";
++  }
++
++  std::string Ret;
++  // The common case.
++  if (Pos.size() == 1) {
++    Ret = Pos.front().str(false);
++  } else {
++    Ret = "{ ";
++    int Index = 0;
++    for (auto it = Pos.begin(); it != Pos.end(); ++it, ++Index) {
++      Ret += "member : ";
++      if (Index != 1) {
++        Ret += it->str(true);
++      } else {
++        Ret += "(array_type [type = " + it->str(true) + "] { })";
++      }
++      Ret += "; ";
++    }
++    Ret += "};";
++  }
++
++  for (auto it = Neg.begin(); it != Neg.end(); ++it) {
++    Ret += "_sub_" + it->str(false);
++  }
++  return Ret;
++}
++
++bool ArithType::isVoid() const {
++  /* Only need to check Pos and Neg, if they are not empty then they still
++   * should not contain any empty TypeFractions. */
++  if (Pos.size() == 0 && Neg.size() == 0) {
++    return true;
++  }
++  return false;
++}
++
++bool ArithType::isComposite() const {
++  if (Pos.size() > 1) {
++    return true;
++  }
++  return false;
++}
++
++ArithType::ArithType(std::string &UniqtypeStr) {
++  int PointerDegree = 0;
++  while (UniqtypeStr.find("__PTR_") == 0) {
++    PointerDegree++;
++    UniqtypeStr.erase(0, 6);
++  }
++  BaseTypePtr Base(UniqtypeStr, PointerDegree);
++  TypeTerm Frac(Base);
++  Pos.push_back(Frac);
++}
++
++ArithType::ArithType(const ArithType &T) {
++  Pos = T.Pos;
++  Neg = T.Neg;
++}
++
++// Warning: This function operates in place!
++void ArithType::addTerm(const TypeTerm &Term) {
++  if (Term.isVoid()) {
++    return;
++  }
++
++  // If the same fraction exists on the negative side, cancel them.
++  auto IsInNeg = std::find(Neg.begin(), Neg.end(), Term);
++  if (IsInNeg != Neg.end()) {
++    Neg.erase(IsInNeg);
++  } else {
++    Pos.push_back(Term);
++  }
++}
++
++void ArithType::subTerm(const TypeTerm &Term) {
++  if (Term.isVoid()) {
++    return;
++  }
++
++  auto IsInPos = std::find(Pos.begin(), Pos.end(), Term);
++  if (IsInPos != Pos.end()) {
++    Pos.erase(IsInPos);
++  } else {
++    Neg.insert(Term);
++  }
++}
++
++const ArithType ArithType::add(const ArithType &T2) const {
++  ArithType Ret(*this);
++
++  for (auto it = T2.Pos.begin(); it != T2.Pos.end(); ++it) {
++    Ret.addTerm(*it);
++  }
++  for (auto it = T2.Neg.begin(); it != T2.Neg.end(); ++it) {
++    Ret.subTerm(*it);
++  }
++
++  return Ret;
++}
++
++const ArithType ArithType::sub(const ArithType &T2) const {
++  ArithType Ret(*this);
++
++  for (auto it = T2.Pos.begin(); it != T2.Pos.end(); ++it) {
++    Ret.subTerm(*it);
++  }
++  for (auto it = T2.Neg.begin(); it != T2.Neg.end(); ++it) {
++    Ret.addTerm(*it);
++  }
++
++  return Ret;
++}
++
++const ArithType ArithType::mul(const ArithType &T2) const {
++  ArithType Ret;
++
++  // If one operand void, just copy the other operand's type.
++  if (isVoid()) {
++    return T2;
++  } else if (T2.isVoid()) {
++    return *this;
++  }
++
++  for (auto it = Pos.begin(); it != Pos.end(); ++it) {
++    for (auto jt = T2.Pos.begin(); jt != T2.Pos.end(); ++jt) {
++      Ret.addTerm(it->mul(*jt));
++    }
++    for (auto jt = T2.Neg.begin(); jt != T2.Neg.end(); ++jt) {
++      Ret.subTerm(it->mul(*jt));
++    }
++  }
++
++  for (auto it = Neg.begin(); it != Neg.end(); ++it) {
++    for (auto jt = T2.Pos.begin(); jt != T2.Pos.end(); ++jt) {
++      Ret.subTerm(it->mul(*jt));
++    }
++    for (auto jt = T2.Neg.begin(); jt != T2.Neg.end(); ++jt) {
++      Ret.addTerm(it->mul(*jt));
++    }
++  }
++
++  return Ret;
++}
++
++const ArithType ArithType::recip() const {
++  ArithType Ret;
++
++  for (auto it = Pos.begin(); it != Pos.end(); ++it) {
++    Ret.Pos.push_back(it->recip());
++  }
++  for (auto it = Neg.begin(); it != Neg.end(); ++it) {
++    Ret.Neg.insert(it->recip());
++  }
++
++  return Ret;
++}
++
++const ArithType ArithType::div(const ArithType &T2) const {
++  ArithType Recip = T2.recip();
++
++  if (isVoid()) {
++    return Recip;
++  } else if (T2.isVoid()) {
++    return *this;
++  }
++
++  return mul(Recip);
++}
++
++bool ArithType::operator==(const ArithType &T) const {
++  return Pos == T.Pos && Neg == T.Neg;
++}
++
++ArithType &ArithType::operator=(const ArithType &Other) {
++  if (this == &Other) {
++    return *this;
++  }
++  Pos = Other.Pos;
++  Neg = Other.Neg;
++  return *this;
++}
++
++std::ostream &operator<<(std::ostream &OS, const ArithType &T) {
++  OS << T.str();
++  return OS;
++}
++
++llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const ArithType &T) {
++  OS << T.str();
++  return OS;
++}
++
++} // namespace Crunch
+diff --git a/lib/Transforms/AllocSites/CMakeLists.txt b/lib/Transforms/AllocSites/CMakeLists.txt
+new file mode 100644
+index 0000000..bba8c6d
+--- /dev/null
++++ b/lib/Transforms/AllocSites/CMakeLists.txt
+@@ -0,0 +1,10 @@
++add_llvm_library(LLVMAllocSites
++  AllocFunction.cpp
++  AllocPass.cpp
++  ArithType.cpp
++
++  ADDITIONAL_HEADER_DIRS
++  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
++  )
++
++add_dependencies(LLVMAllocSites intrinsics_gen)
+diff --git a/lib/Transforms/LLVMBuild.txt b/lib/Transforms/AllocSites/LLVMBuild.txt
+similarity index 73%
+copy from lib/Transforms/LLVMBuild.txt
+copy to lib/Transforms/AllocSites/LLVMBuild.txt
+index 15e9fba..933cff4 100644
+--- a/lib/Transforms/LLVMBuild.txt
++++ b/lib/Transforms/AllocSites/LLVMBuild.txt
+@@ -1,4 +1,4 @@
+-;===- ./lib/Transforms/LLVMBuild.txt ---------------------------*- Conf -*--===;
++;===- ./lib/Transforms/Crunch/LLVMBuild.txt --------------------*- Conf -*--===;
+ ;
+ ;                     The LLVM Compiler Infrastructure
+ ;
+@@ -15,10 +15,8 @@
+ ;
+ ;===------------------------------------------------------------------------===;
+ 
+-[common]
+-subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC
+-
+ [component_0]
+-type = Group
+-name = Transforms
+-parent = Libraries
++type = Library
++name = AllocSites
++parent = Transforms
++required_libraries = Analysis Core TransformUtils
+diff --git a/lib/Transforms/AllocSites/Makefile b/lib/Transforms/AllocSites/Makefile
+new file mode 100644
+index 0000000..da1c386
+--- /dev/null
++++ b/lib/Transforms/AllocSites/Makefile
+@@ -0,0 +1,15 @@
++##===- lib/Transforms/Crunch/Makefile -------------*- Makefile -*-===##
++#
++#                     The LLVM Compiler Infrastructure
++#
++# This file is distributed under the University of Illinois Open Source
++# License. See LICENSE.TXT for details.
++#
++##===----------------------------------------------------------------------===##
++
++LEVEL = ../../..
++LIBRARYNAME = LLVMAllocSites
++BUILD_ARCHIVE = 1
++
++include $(LEVEL)/Makefile.common
++
+diff --git a/lib/Transforms/CMakeLists.txt b/lib/Transforms/CMakeLists.txt
+index 2bb6e90..1dc0ad0 100644
+--- a/lib/Transforms/CMakeLists.txt
++++ b/lib/Transforms/CMakeLists.txt
+@@ -6,3 +6,4 @@ add_subdirectory(IPO)
+ add_subdirectory(Vectorize)
+ add_subdirectory(Hello)
+ add_subdirectory(ObjCARC)
++add_subdirectory(AllocSites)
+diff --git a/lib/Transforms/LLVMBuild.txt b/lib/Transforms/LLVMBuild.txt
+index 15e9fba..600a7de 100644
+--- a/lib/Transforms/LLVMBuild.txt
++++ b/lib/Transforms/LLVMBuild.txt
+@@ -16,7 +16,7 @@
+ ;===------------------------------------------------------------------------===;
+ 
+ [common]
+-subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC
++subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC AllocSites
+ 
+ [component_0]
+ type = Group
+diff --git a/lib/Transforms/Makefile b/lib/Transforms/Makefile
+index c390517..6e4391b 100644
+--- a/lib/Transforms/Makefile
++++ b/lib/Transforms/Makefile
+@@ -8,7 +8,7 @@
+ ##===----------------------------------------------------------------------===##
+ 
+ LEVEL = ../..
+-PARALLEL_DIRS = Utils Instrumentation Scalar InstCombine IPO Vectorize Hello ObjCARC
++PARALLEL_DIRS = Utils Instrumentation Scalar InstCombine IPO Vectorize Hello ObjCARC AllocSites
+ 
+ include $(LEVEL)/Makefile.config
+ 
+diff --git a/tools/opt/CMakeLists.txt b/tools/opt/CMakeLists.txt
+index 5f82522..2145820 100644
+--- a/tools/opt/CMakeLists.txt
++++ b/tools/opt/CMakeLists.txt
+@@ -1,5 +1,6 @@
+ set(LLVM_LINK_COMPONENTS
+   ${LLVM_TARGETS_TO_BUILD}
++  AllocSites
+   Analysis
+   BitWriter
+   CodeGen
+-- 
+2.1.4
+

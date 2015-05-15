@@ -1,0 +1,39 @@
+From d6d6349a2fd8794ecd1e830e345ee1f59cd6942d Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Sun, 8 Mar 2015 00:42:36 +0000
+Subject: [PATCH 2/4] Use DEBUG enviromenment variable to control builds.
+
+Don't add `-DNDEBUG' to CFLAGS, and disable optimisation, when DEBUG=1.
+---
+ src/Makefile | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/Makefile b/src/Makefile
+index cfcc9db..d0ccc1c 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -1,12 +1,14 @@
+ CFLAGS += -std=gnu99 -g -fPIC -I../include
+-# debugging version
+-#CFLAGS += -O0 -flto
+-# experiment to see what's faster -- plain old -O4 -flto seems marginally faster than with -Os
+-#CFLAGS += -O4 -flto -DNDEBUG
+-#CFLAGS += -Os -flto -DNDEBUG
+-CFLAGS += -O3 -flto -DNDEBUG
++ifeq ($(DEBUG),1)
++    CFLAGS += -O0 -flto
++else
++    # experiment to see what's faster -- plain old -O4 -flto seems marginally faster than with -Os
++    #CFLAGS += -O4 -flto -DNDEBUG
++    #CFLAGS += -Os -flto -DNDEBUG
++    CFLAGS += -O3 -flto -DNDEBUG
++endif
++
+ FINAL_LDFLAGS += -O4 -flto -Bsymbolic -Wl,-O2
+-#CFLAGS += -O0 
+ 
+ CXXFLAGS := $(filter-out -std=%,$(CFLAGS)) -std=c++11
+ 
+-- 
+2.1.4
+

@@ -1,0 +1,28 @@
+From 112cd53497573bd9e41e3976d6bb1f4599e77757 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Sun, 8 Feb 2015 01:50:09 +0000
+Subject: [PATCH 4/4] Print message if dlopen() fails.
+
+---
+ src/liballocs.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/liballocs.c b/src/liballocs.c
+index 46d754f..12ccb39 100644
+--- a/src/liballocs.c
++++ b/src/liballocs.c
+@@ -943,7 +943,10 @@ static void *typeobj_handle_for_addr(void *caller)
+ 	// dlopen the typeobj
+ 	const char *types_libname = helper_libfile_name(dynobj_name_from_dlpi_name(info.dli_fname, info.dli_fbase), "-types.so");
+ 	assert(types_libname != NULL);
+-	return dlopen(types_libname, RTLD_NOW | RTLD_NOLOAD);
++	void *handle = dlopen(types_libname, RTLD_NOW | RTLD_NOLOAD);
++	if (handle == NULL)
++		printf("Error: %s\n", dlerror());
++	return handle;
+ }
+ 
+ void *__liballocs_my_typeobj(void) __attribute__((visibility("protected")));
+-- 
+2.1.4
+

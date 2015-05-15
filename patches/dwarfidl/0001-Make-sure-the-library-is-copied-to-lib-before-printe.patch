@@ -1,0 +1,26 @@
+From 72af0fad9558bed28cbacaa25172c337c75b875f Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Fri, 12 Dec 2014 09:57:02 +0000
+Subject: [PATCH] Make sure the library is copied to lib/ before printer is
+ built.
+
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 6edb310..587f1d8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -9,7 +9,7 @@ src: parser
+ 	$(MAKE) -C src
+ 
+ .PHONY: printer
+-printer: src
++printer: src lib
+ 	$(MAKE) -C printer
+ 
+ lib: src
+-- 
+2.1.4
+

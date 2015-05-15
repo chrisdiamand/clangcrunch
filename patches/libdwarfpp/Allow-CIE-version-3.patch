@@ -1,0 +1,25 @@
+From 204b21348583221397dd134d27dd88aa7fbdb682 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Sun, 10 May 2015 23:19:13 +0100
+Subject: [PATCH 7/7] Allow CIE version 3 (whatever that is).
+
+---
+ src/frame.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/frame.cpp b/src/frame.cpp
+index 6b80729..fbfd37d 100644
+--- a/src/frame.cpp
++++ b/src/frame.cpp
+@@ -436,7 +436,7 @@ namespace dwarf
+ 			if (address_size_in_dwarf > 0) return address_size_in_dwarf;
+ 			else 
+ 			{
+-				assert(version == 1);
++				assert(version == 1 || version == 3);
+ 				// we have to guess it's an ELF file
+ 				auto e_machine = owner.get_elf_machine();
+ 				return (e_machine == EM_X86_64) ? 8 : (e_machine == EM_386) ? 4 : (assert(false), 4);
+-- 
+2.1.4
+

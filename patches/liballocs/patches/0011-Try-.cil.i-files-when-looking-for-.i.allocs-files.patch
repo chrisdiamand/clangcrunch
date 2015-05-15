@@ -1,0 +1,72 @@
+From 06b0172a4ee1e48c03e1a4cb2094d3fbfe0a366f Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Wed, 6 May 2015 12:13:53 +0100
+Subject: [PATCH 11/11] Try '.cil.i' files when looking for '.i.allocs' files.
+
+This makes CIL work with clang as the backend compiler.
+---
+ tools/allocscompilerwrapper.py      | 3 +--
+ tools/lang/c/bin/allocscc           | 3 ++-
+ tools/lang/c/bin/c-gather-srcallocs | 5 +++++
+ tools/objdumpallocs                 | 2 --
+ 4 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/tools/allocscompilerwrapper.py b/tools/allocscompilerwrapper.py
+index 3274036..d7a80c1 100644
+--- a/tools/allocscompilerwrapper.py
++++ b/tools/allocscompilerwrapper.py
+@@ -87,8 +87,7 @@ class AllocsCompilerWrapper(CompilerWrapper):
+         return self.getLinkPath()
+     
+     def getCustomCompileArgs(self, sourceInputFiles):
+-        return ["-gdwarf-4", "-gstrict-dwarf", "-fvar-tracking-assignments", \
+-        "-fno-omit-frame-pointer", "-ffunction-sections"]
++        return ["-gdwarf-4", "-fno-omit-frame-pointer", "-ffunction-sections"]
+ 
+     def main(self):
+         # un-export CC from the env if it's set to allocscc, because 
+diff --git a/tools/lang/c/bin/allocscc b/tools/lang/c/bin/allocscc
+index 16c9443..7bdeae7 100755
+--- a/tools/lang/c/bin/allocscc
++++ b/tools/lang/c/bin/allocscc
+@@ -76,7 +76,8 @@ class AllocsCC(AllocsCompilerWrapper):
+            "--dodumpallocs", \
+             "--keepunused"] \
+             + includeArgs + \
+-            ["-Wno-unused-variable", "-Wno-unused-label"]
++            ["-Wno-unused-variable", "-Wno-unused-label"] \
++            + ["-g", "-fno-eliminate-unused-debug-types"]
+             # We need the above -Wno-unused-... because CIL creates
+             # some unused stuff (unavoidably, I believe) which will
+             # make compilation done with -Werror barf if we don't
+diff --git a/tools/lang/c/bin/c-gather-srcallocs b/tools/lang/c/bin/c-gather-srcallocs
+index ad3a8c8..181d59e 100755
+--- a/tools/lang/c/bin/c-gather-srcallocs
++++ b/tools/lang/c/bin/c-gather-srcallocs
+@@ -11,6 +11,11 @@ test -n "$cu_compdir" || (echo "args: <sourcepath> <obj> <cu_fname> <cu_compdir>
+ 
+ cu_allocspath="$( echo "$cu_sourcepath" | grep '\.cil\.c$' | sed 's/\.cil\.c/.i.allocs/' )"
+ 
++# If we're using CIL with clang backend, the source path might be '%.cil.i'.
++if [[ -z "$cu_allocspath" ]]; then
++    cu_allocspath="$( echo "$cu_sourcepath" | grep '\.cil\.i$' | sed 's/\.cil\.i/.i.allocs/' )"
++fi
++
+ # If we're using clang instead of CIL then the source path will just be '%.c',
+ # not '%.cil.c'.
+ if [[ -z "$cu_allocspath" ]]; then
+diff --git a/tools/objdumpallocs b/tools/objdumpallocs
+index 8a513a1..6e40683 100755
+--- a/tools/objdumpallocs
++++ b/tools/objdumpallocs
+@@ -1,7 +1,5 @@
+ #!/bin/bash
+ 
+-. ~/lib/bash/util
+-
+ # Build a list of allocation sites with the power of objdump.
+ # We record them as the string inside the < >
+ # i.e. <symname+0xoffset>, without the < >.
+-- 
+2.1.4
+

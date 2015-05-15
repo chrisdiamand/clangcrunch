@@ -1,0 +1,26 @@
+From 0803976430af13d033f3023dc4020d2f86a067c5 Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Sun, 8 Feb 2015 01:43:12 +0000
+Subject: [PATCH 3/4] tests: Remove *.so (and others) in 'clean' target.
+
+Otherwise section-group/lib[1|2].so aren't rebuilt, which causes problems if
+the allocsites data has been removed.
+---
+ tests/Makefile | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/tests/Makefile b/tests/Makefile
+index 28a5da1..e86ac91 100644
+--- a/tests/Makefile
++++ b/tests/Makefile
+@@ -119,4 +119,6 @@ default:
+ # generic clean rule that we can run from test dirs too (with $(MAKE) -f ../Makefile)
+ clean: # (delete anything whose name is a prefix of a .c file's and doesn't contain a dot)
+ 	rm -f $(filter-out .,$(patsubst %.c,%,$(shell find -name '*.c')))
+-	find -name '*.cil.*'  -o -name '*.i' -o -name '*.o' -o -name '*.s' -o -name '*.allocs' | xargs rm -f
++	find -name '*.cil.*' -o -name '*.i' -o -name '*.o' -o \
++	     -name '*.s' -o -name '*.allocs' -o -name '*.so' -o \
++	     -name '*.allocstubs.c' -o -name '*.fixuplog' | xargs rm -f
+-- 
+2.1.4
+

@@ -1,0 +1,53 @@
+From 4d5e401767101708955146160ae10c350f2281fc Mon Sep 17 00:00:00 2001
+From: Chris Diamand <chris@diamand.org>
+Date: Tue, 14 Apr 2015 11:07:57 +0100
+Subject: [PATCH 10/11] Add debug messages for when __liballocs_get_alloc_info
+ fails.
+
+---
+ include/liballocs.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/include/liballocs.h b/include/liballocs.h
+index beeac57..e785073 100644
+--- a/include/liballocs.h
++++ b/include/liballocs.h
+@@ -682,6 +682,8 @@ __liballocs_get_alloc_info
+ 					// return value <1 means error
+ 
+ 					err = &__liballocs_err_stack_walk_step_failure;
++					fprintf(stderr, "%s:%d: Stack walk step failure\n",
++							__func__, __LINE__);
+ 					goto abort_stack;
+ 					break;
+ 				}
+@@ -746,6 +748,8 @@ __liballocs_get_alloc_info
+ 					}
+ 					
+ 					err = &__liballocs_err_stack_walk_reached_higher_frame;
++					fprintf(stderr, "%s:%d: Stack walk reached higher frame\n",
++							__func__, __LINE__);
+ 					goto abort_stack;
+ 				}
+ 
+@@ -755,6 +759,8 @@ __liballocs_get_alloc_info
+ 			if (higherframe_sp == BEGINNING_OF_STACK)
+ 			{
+ 				err = &__liballocs_err_stack_walk_reached_top_of_stack;
++				fprintf(stderr, "%s:%d: Stack walk reached top of stack\n",
++						__func__, __LINE__);
+ 				goto abort_stack;
+ 			}
+ 		#undef BEGINNING_OF_STACK
+@@ -839,6 +845,8 @@ __liballocs_get_alloc_info
+ 			if (!alloc_uniqtype) 
+ 			{
+ 				err = &__liballocs_err_unrecognised_alloc_site;
++				fprintf(stderr, "%s:%d: Unrecognised alloc site\n",
++						__func__, __LINE__);
+ 				if (__builtin_expect(k == HEAP, 1))
+ 				{
+ 					++__liballocs_aborted_unrecognised_allocsite;
+-- 
+2.1.4
+
