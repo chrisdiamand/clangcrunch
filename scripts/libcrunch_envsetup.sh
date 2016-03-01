@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export SRK31_PROJECTS=`crunch_realpath $SCRIPT_DIR/../..`
+export SRK31_PROJECTS=`readlink -m $SCRIPT_DIR/../external`
 
 add_incl_path $SRK31_PROJECTS/libsrk31cxx/include
 add_link_path $SRK31_PROJECTS/libsrk31cxx/lib
@@ -47,8 +47,8 @@ export ANTLR="java org.antlr.Tool"
 add_link_path $SRK31_PROJECTS/libcrunch/lib
 add_bin_path $SRK31_PROJECTS/libcrunch/frontend/c/bin
 
-add_link_path $SRK31_PROJECTS/cil-git/lib
-add_bin_path $SRK31_PROJECTS/cil-git/bin
+add_link_path $SRK31_PROJECTS/cil/lib
+add_bin_path $SRK31_PROJECTS/cil/bin
 
 function allocs_gdb {
     FNAME=/tmp/gdb_allocs_preload.txt

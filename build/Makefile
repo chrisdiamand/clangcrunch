@@ -2,7 +2,7 @@
 
 DEBUG ?= 1
 
-PROJ_ROOT := $(realpath ../..)
+PROJ_ROOT := $(realpath ../external)
 
 PROJECTS_TO_CLEAN := \
     libcxxfileno \
@@ -48,7 +48,7 @@ antlr_clean:
 
 ### Fetching and building CIL ###
 
-CIL_DIR := $(PROJ_ROOT)/cil-git
+CIL_DIR := $(PROJ_ROOT)/cil
 CIL_MAKEFILE := $(CIL_DIR)/Makefile
 CIL_BUILT := $(CIL_DIR)/bin/cilly
 

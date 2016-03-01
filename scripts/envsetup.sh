@@ -1,32 +1,40 @@
 #!/usr/bin/env bash
 
-# readlink that works everywhere
-function crunch_realpath {
-    python -c "import os, sys; print(os.path.realpath(sys.argv[1]))" "$1"
-}
-
 if [ "$0" = "bash" -o "$0" = "-bash" ]; then
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 else
     SCRIPT_DIR=`dirname $0`
-    SCRIPT_DIR=`crunch_realpath $SCRIPT_DIR`
+    SCRIPT_DIR=`readlink -m $SCRIPT_DIR`
 fi
 
 function diss_add_path_to_list {
-    VAR="$1"
-    P=`crunch_realpath $2`
+    function _diss_path_not_in_path_list {
+        local p="$1"
+        local plist="$2"
+        if [[ "$plist" == "$p" ||
+            "$plist" == "$p:"* ||
+            "$plist" == *":$p:"* ||
+            "$plist" == *":$p" ]]; then
+            return 1
+        fi
+        return 0
+    }
+
+    local VAR="$1" P=`readlink -m $2` CURVAL= RET=0
+
     eval CURVAL=\$$VAR
-    if notin "$P" "$CURVAL"; then
+    if _diss_path_not_in_path_list "$P" "$CURVAL"; then
         export $VAR=$P:$CURVAL
     fi
-    if [ -d "`dirname $P`" ]; then
-        return 0
-    fi
-    return 1 # Error if the path doesn't exist
+
+    [[ -d `dirname "$P"` ]] || RET=1
+
+    unset -f _diss_path_not_in_path_list
+    return "$RET"
 }
 
 function warn_not_dir {
-    echo "Warning: '`crunch_realpath $1`': Not a directory."
+    echo "Warning: '$1': Not a directory."
 }
 
 function add_link_path {

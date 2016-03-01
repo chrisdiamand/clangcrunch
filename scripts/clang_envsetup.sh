@@ -1,7 +1,7 @@
-LLVM_SOURCE=`crunch_realpath $SCRIPT_DIR/../../llvm`
+LLVM_SOURCE=`readlink -m $SCRIPT_DIR/../external/llvm`
 
-add_bin $LLVM_SOURCE/build/bin
-add_lib $LLVM_SOURCE/build/lib
+add_bin_path $LLVM_SOURCE/build/bin
+add_link_path $LLVM_SOURCE/build/lib
 
 function cmake_crunchclang {
     DIR=$1
