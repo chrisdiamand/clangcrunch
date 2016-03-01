@@ -37,7 +37,3 @@
 [submodule "external/llvm"]
 	path = external/llvm
 	url = https://github.com/chrisdiamand/llvm.git
-[submodule "external/antlr3"]
-	path = external/antlr3
-	url = https://github.com/antlr/antlr3.git
-	branch = origin/antlr-3.4
