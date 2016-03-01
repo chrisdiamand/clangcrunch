@@ -23,7 +23,7 @@
 	path = external/libdwarfpp
 	url = https://github.com/chrisdiamand/libdwarfpp.git
 [submodule "external/libmallochooks"]
-	path = external/libmallochooks
+	path = external/libmallochooks.hg
 	url = https://github.com/stephenrkell/libmallochooks.git
 [submodule "external/libsrk31cxx"]
 	path = external/libsrk31cxx
