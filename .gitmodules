@@ -15,7 +15,7 @@
 	url = https://github.com/chrisdiamand/libcrunch.git
 [submodule "external/libcxxfileno"]
 	path = external/libcxxfileno
-	url = https://github.com/stephenrkell/libcxxfileno.git
+	url = https://github.com/chrisdiamand/libcxxfileno.git
 [submodule "external/libcxxgen"]
 	path = external/libcxxgen
 	url = https://github.com/stephenrkell/libcxxgen.git
@@ -27,7 +27,7 @@
 	url = https://github.com/stephenrkell/libmallochooks.git
 [submodule "external/libsrk31cxx"]
 	path = external/libsrk31cxx
-	url = https://github.com/stephenrkell/libsrk31cxx.git
+	url = https://github.com/chrisdiamand/libsrk31cxx.git
 [submodule "external/m4ntlr"]
 	path = external/m4ntlr
 	url = https://github.com/stephenrkell/m4ntlr.git
