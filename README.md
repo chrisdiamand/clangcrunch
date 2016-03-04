@@ -17,6 +17,7 @@ submodules to get the dependencies:
     $ git submodule update --init --recursive
 
 Alternatively, download directly:
+
     $ git clone https://github.com/chrisdiamand/llvm.git
     $ cd llvm/tools/ && git clone https://github.com/chrisdiamand/clang.git
     # Forks of Stephen Kell's projects:
@@ -26,9 +27,9 @@ Alternatively, download directly:
     $ git clone https://github.com/chrisdiamand/libdwarfpp.git
 
 libcrunch has several other dependencies - these can be downloaded from
-https://github.com/stephenrkell
+`https://github.com/stephenrkell`
 
-As a last resort, patches containing the changes I made to each project are
+As a last resort, patches containing the changes required for each project are
 included in the patches/ directory.
 
 Building
