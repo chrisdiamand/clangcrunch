@@ -12,19 +12,18 @@ There are many dependencies though.
 The easiest way to get everything is by cloning this repo and using git
 submodules to get the dependencies:
 
-$ git clone https://github.com/chrisdiamand/clangcrunch.git
-$ cd clangcrunch
-$ git submodule update --init --recursive
+    $ git clone https://github.com/chrisdiamand/clangcrunch.git
+    $ cd clangcrunch
+    $ git submodule update --init --recursive
 
-Alternatively, all the repositories that I modified or wrote can be downloaded
-directly from github:
-$ git clone https://github.com/chrisdiamand/llvm.git
-$ cd llvm/tools/ && git clone https://github.com/chrisdiamand/clang.git
-# These last four are forks of Stephen Kell's projects
-$ git clone https://github.com/chrisdiamand/libcrunch.git
-$ git clone https://github.com/chrisdiamand/liballocs.git
-$ git clone https://github.com/chrisdiamand/dwarfidl.git
-$ git clone https://github.com/chrisdiamand/libdwarfpp.git
+Alternatively, download directly:
+    $ git clone https://github.com/chrisdiamand/llvm.git
+    $ cd llvm/tools/ && git clone https://github.com/chrisdiamand/clang.git
+    # Forks of Stephen Kell's projects:
+    $ git clone https://github.com/chrisdiamand/libcrunch.git
+    $ git clone https://github.com/chrisdiamand/liballocs.git
+    $ git clone https://github.com/chrisdiamand/dwarfidl.git
+    $ git clone https://github.com/chrisdiamand/libdwarfpp.git
 
 libcrunch has several other dependencies - these can be downloaded from
 https://github.com/stephenrkell
@@ -37,23 +36,23 @@ Building
 
 Build Stephen's projects
 ------------------------
-$ source scripts/envsetup.sh
-$ cd build
-$ make
+    $ source scripts/envsetup.sh
+    $ cd build
+    $ make
 
 Build Clang
 -----------
 
-$ cd external/llvm
-# Create a link to the clang directory if necessary, although this should have
-# been done automatically by 'envsetup.sh'.
-$ ln -s -T ../clang tools/clang
-$ mkdir -p build-x86 && cd build-x86
-$ cmake -G Ninja ..
-$ ninja
+    $ cd external/llvm
+    # Create a link to the clang directory if necessary, although this should have
+    # been done automatically by 'envsetup.sh'.
+    $ ln -s -T ../clang tools/clang
+    $ mkdir -p build-x86 && cd build-x86
+    $ cmake -G Ninja ..
+    $ ninja
 
 Running
 =======
 
-$ clangcrunchcc /my/source/program.c -o program
-$ LD_PRELOAD=/path/to/clangrunch/external/libcrunch/src/libcrunch_preload.so ./program
+    $ clangcrunchcc /my/source/program.c -o program
+    $ LD_PRELOAD=/path/to/clangrunch/external/libcrunch/src/libcrunch_preload.so ./program
