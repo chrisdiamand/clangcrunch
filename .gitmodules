@@ -3,31 +3,31 @@
 	url = git://git.code.sf.net/p/cil/code.git
 [submodule "external/dwarfidl"]
 	path = external/dwarfidl
-	url = https://github.com/chrisdiamand/dwarfidl.git
+	url = https://github.com/stephenrkell/dwarfidl.git
 [submodule "external/liballocs"]
 	path = external/liballocs
-	url = https://github.com/chrisdiamand/liballocs.git
+	url = https://github.com/stephenrkell/liballocs.git
 [submodule "external/libantlr3cxx"]
 	path = external/libantlr3cxx
 	url = https://github.com/stephenrkell/libantlr3cxx.git
 [submodule "external/libcrunch"]
 	path = external/libcrunch
-	url = https://github.com/chrisdiamand/libcrunch.git
+	url = https://github.com/stephenrkell/libcrunch.git
 [submodule "external/libcxxfileno"]
 	path = external/libcxxfileno
-	url = https://github.com/chrisdiamand/libcxxfileno.git
+	url = https://github.com/stephenrkell/libcxxfileno.git
 [submodule "external/libcxxgen"]
 	path = external/libcxxgen
 	url = https://github.com/stephenrkell/libcxxgen.git
 [submodule "external/libdwarfpp"]
 	path = external/libdwarfpp
-	url = https://github.com/chrisdiamand/libdwarfpp.git
+	url = https://github.com/stephenrkell/libdwarfpp.git
 [submodule "external/libmallochooks"]
 	path = external/libmallochooks.hg
 	url = https://github.com/stephenrkell/libmallochooks.git
 [submodule "external/libsrk31cxx"]
 	path = external/libsrk31cxx
-	url = https://github.com/chrisdiamand/libsrk31cxx.git
+	url = https://github.com/stephenrkell/libsrk31cxx.git
 [submodule "external/m4ntlr"]
 	path = external/m4ntlr
 	url = https://github.com/stephenrkell/m4ntlr.git
