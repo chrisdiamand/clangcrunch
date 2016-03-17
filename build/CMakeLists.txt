@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.10)
 
 # You can tweak some common (for all subprojects) stuff here. For example:
 
+set(E ${CMAKE_SOURCE_DIR}/../external)
+
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_DISABLE_SOURCE_CHANGES  ON)
 

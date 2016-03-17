@@ -1,6 +1,9 @@
 *
 !.gitignore
 !.repolist.py
+!CMakeLists.txt
 !MD5SUM*
 !Makefile
 !antlr_build
+!libsrk31cxx/
+!libcxxfileno/
