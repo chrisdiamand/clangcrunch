@@ -5,5 +5,7 @@
 !MD5SUM*
 !Makefile
 !antlr_build
-!libsrk31cxx/
-!libcxxfileno/
+!libcxxfileno
+!libcxxgen
+!libdwarfpp
+!libsrk31cxx

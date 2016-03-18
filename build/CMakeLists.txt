@@ -22,3 +22,6 @@ endif ()
 # Subprojects in dependency order.
 add_subdirectory(libcxxfileno)
 add_subdirectory(libsrk31cxx)
+add_subdirectory(libdwarfpp)
+add_subdirectory(libcxxgen)
+#add_subdirectory(dwarfidl)
