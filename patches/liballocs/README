@@ -1,8 +1,0 @@
-The patches in merged_upstream/ have already been merged to:
-    https://github.com/stephenrkell/liballocs
-
-The patches in the patches/ directory have not yet been merged, so need to be
-applied manually on top of commit 4a6c3d4.
-
-Alternatively, check out the repository here:
-$ git clone https://github.com/chrisdiamand/liballocs.git

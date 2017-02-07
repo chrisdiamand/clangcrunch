@@ -304,144 +304,18 @@ def register_tests():
         add(CrunchTest(t, buildEnv = buildEnv, runEnv = runEnv,
                        fail = fail, flags = flags, summary = summary))
 
-    addAllocsTest("allocs/alloca.c", summary = {"a.stack": 1})
-
-    multiAllocEnv = {"LIBALLOCS_ALLOC_FNS":
-                        "xmalloc(Z)p xcalloc(zZ)p xrealloc(pZ)p",
-                     "LIBALLOCS_SUBALLOC_FNS":
-                        "g_slice_alloc(Z)p g_slice_alloc0(Z)p"}
-    addAllocsTest("allocs/multi_alloc.c", summary = {},
-                  flags = ["-Wl,--no-as-needed"] +
-                          pkg_config("glib-2.0") +
-                          ["-Wl,--as-needed"],
-                  buildEnv = multiAllocEnv, runEnv = multiAllocEnv)
-
-    addAllocsTest("allocs/offsetof_composite.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/offsetof_simple.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/simple.c", summary = {"a.heap": 1})
-    addAllocsTest("allocs/sloppy_dumptypes.c", summary = {})
-    addAllocsTest("allocs/uniqtype_walk.c", flags = ["-lallocs"],
-                  summary = {"a.heap": 1})
     #addAllocsTest("allocs/sizefunc_arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_iterate.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/sizefunc_indirect.c", summary = {"a.heap": 3})
     addAllocsTest("allocs/arith.c", summary = {"a.heap": 2})
     addAllocsTest("allocs/reuse.c", summary = {"a.heap": 2})
     #addAllocsTest("allocs/reuse_global.c", summary = {"a.heap": 2})
-    addAllocsTest("allocs/relf_auxv_dynamic.c", flags = ["-ldl"])
 
     summ = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
-    add(CrunchMakefileTest("crunch/section_group", summary = summ))
 
     summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1, "a.heap": 1}
-    add(CrunchMakefileTest("crunch/incomplete", summary = summ))
-
-    addCrunchTest("crunch/array.c",
-                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
-                             "a.static": 2})
-
-    addCrunchTest("crunch/function_refines.c",
-                  summary = {"c.remaining": 1, "c.nontriv": 1, "a.static": 1,
-                             "c.begun": 1})
-
-    addCrunchTest("crunch/heap.c",
-                  summary = {"a.heap": 1, "c.nontriv": 2, "c.remaining": 2,
-                             "c.hit_cache": 1, "c.begun": 2})
-
-    addCrunchTest("crunch/indirect.c", flags = ["-O0"],
-                  summary = {"c.begun": 10, "c.nontriv": 10, "a.heap": 5,
-                             "c.hit_cache": 5, "c.remaining": 10})
-
-    addCrunchTest("crunch/qualified_char.c", summary = {})
-
-    addCrunchTest("crunch/fail/funptr.c", fail = True,
-                  summary = {"c.remaining": 1, "a.static": 1, "c.begun": 1,
-                             "c.failed_other": 1})
-
-    addCrunchTest("crunch/fail/va_arg.c", fail = True,
-                  summary = {"c.begun": 3, "a.stack": 3, "c.remaining": 3,
-                             "c.failed_other": 3})
-
-    addCrunchTest("crunch/fail/voidptrptr_invalid.c", fail = True,
-                  summary = {"a.stack": 4, "c.begun": 4,
-                             "c.remaining": 4, "c.failed_other": 4})
-
-    addCrunchTest("crunch/fail/voidptrptr_strict.c", fail = True,
-                  buildEnv = {"LIBCRUNCH_STRICT_GENERIC_POINTERS": "1"},
-                  summary = {"c.begun": 2, "a.stack": 2, "c.remaining": 2,
-                             "c.failed_other": 2})
-
-    addCrunchTest("crunch/funptr.c",
-                  buildEnv = {"LIBCRUNCH_SLOPPY_FUNCTION_POINTERS": "1"},
-                  summary = {"c.begun": 3, "c.remaining": 2, "c.nontriv": 2,
-                  "a.static": 2, "a.abort_storage": 1, "a.stack": 1,
-                  "c.hit_cache": 1})
-
-    addCrunchTest("crunch/hello.c")
-
-    addCrunchTest("crunch/hello_errno.c")
-
-    addCrunchTest("crunch/lazy_typing.c",
-                  buildEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
-                  runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "__PTR_void sockaddr"},
-                  summary = {"c.begun": 2, "c.remaining": 2,
-                             "c.lazy_heap": 2, "a.heap": 2})
-
-    addCrunchTest("crunch/like_a.c",
-                  buildEnv = {"LIBCRUNCH_USE_LIKE_A_FOR_TYPES": "sockaddr",
-                              "LIBCRUNCH_LAZY_HEAP_TYPES": "sockaddr"},
-                  runEnv = {"LIBCRUNCH_LAZY_HEAP_TYPES": "sockaddr"},
-                  summary = {"c.begun": 2, "c.remaining": 2, "c.lazy_heap": 1,
-                             "c.nontriv": 1, "a.heap": 2})
 
     addCrunchTest("crunch/nullcheck.c")
-
-    addCrunchTest("crunch/random.c",
-                  summary = {"c.begun": 1003, "a.heap": 339,
-                             "c.remaining": 1003, "c.failed_other": 334,
-                             "c.nontriv": 669, "c.hit_cache": 997})
-
-    addCrunchTest("crunch/sizeofness.c",
-                  summary = {"c.begun": 2, "c.remaining": 2, "c.hit_cache": 1,
-                             "a.heap": 1, "c.nontriv": 2})
-
-    addCrunchTest("crunch/stack.c",
-                  summary = {"c.begun": 2, "a.stack": 2, "c.nontriv": 2,
-                             "c.remaining": 2})
-
-    addCrunchTest("crunch/stackactual.c",
-                  summary = {"c.begun": 1, "a.stack": 1, "c.nontriv": 1,
-                             "c.remaining": 1})
-
-    addCrunchTest("crunch/static.c",
-                  summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
-                             "a.static": 1})
-
-    addCrunchTest("crunch/stubgen.c",
-                  buildEnv = {"LIBALLOCS_ALLOC_FNS": "xmalloc(Z)p"},
-                              flags = ["-Wl,--defsym,xmalloc=__my_xmalloc",
-                                       "-O0"],
-                  summary = {"c.begun": 2, "a.heap": 1, "c.nontriv": 2,
-                             "c.hit_cache": 1, "c.remaining": 2})
-
-    addCrunchTest("crunch/union.c",
-                  summary = {"c.begun": 5, "c.remaining": 5, "c.nontriv": 5,
-                             "a.static": 5})
-
-    addCrunchTest("crunch/va_arg.c",
-                  summary = {"c.begun": 3, "c.remaining": 3, "a.stack": 3,
-                             "c.nontriv": 3})
-
-    addCrunchTest("crunch/void.c",
-                  summary = {"c.begun": 1, "c.remaining": 1, "c.nontriv": 1,
-                             "a.heap": 1})
-
-    addCrunchTest("crunch/voidptrptr.c",
-                  summary = {"c.begun": 2, "c.remaining": 2, "c.nontriv": 2,
-                             "a.stack": 4})
-
-    addCrunchTest("broken/pointer_degree.c", fail = True,
-                  summary = {"a.stack": 17})
 
     return tests
 
