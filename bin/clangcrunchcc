@@ -9,42 +9,27 @@ from os import path
 if "LIBCRUNCH_BASE" in os.environ:
     LIBCRUNCH_BASE = os.environ["LIBCRUNCH_BASE"]
 else:
-    LIBCRUNCH_BASE = path.join(path.dirname(__file__), "../external/libcrunch")
-    LIBCRUNCH_BASE = path.realpath(LIBCRUNCH_BASE)
+    LIBCRUNCH_BASE = path.realpath(path.join(path.dirname(__file__), "../../.."))
 
-from ClangAllocsCC import ClangAllocsCC
+sys.path.append(path.join(path.dirname(__file__), "../lib"))
+sys.path.append(os.path.join(LIBCRUNCH_BASE, "frontend/c/lib"))
+from crunchcc import CrunchCC
+from allocscompilerwrapper import AllocsCompilerWrapper
+from allocscc import AllocsCC
+from clangallocscc import ClangAllocsCC
 
-class ClangCrunchCC(ClangAllocsCC):
-
-    def fixupDotO(self, filename, errfile):
-        # also link the file with the uniqtypes it references
-        cmd = [self.getLibAllocsBaseDir() + "/tools/lang/c/bin/link-used-types", filename]
-        self.debugMsg("Calling " + " ".join(cmd) + "\n")
-
-        errfilename = os.path.realpath(filename) + ".fixuplog"
-
-        with (self.makeErrFile(errfilename, "w+") if not errfile else errfile) as errfile:
-            ret = subprocess.call(cmd, stderr=errfile)
-            if ret != 0:
-                self.print_errors(errfile)
-                return ret  # give up now
-
-            return ClangAllocsCC.fixupDotO(self, filename, errfile)
+class ClangCrunchCC(ClangAllocsCC, CrunchCC):
 
     def getClangArgs(self, sourceFiles):
-        args = ClangAllocsCC.getClangArgs(self, sourceFiles)
-        args += ["-include",
-                 path.join(LIBCRUNCH_BASE, "include/libcrunch_cil_inlines.h")]
-        return args
+        return ClangAllocsCC.getClangArgs(self, sourceFiles) \
+            + (["-include", \
+                 path.join(LIBCRUNCH_BASE, "include/libcrunch_cil_inlines.h")] \
+                 if (len(sourceFiles) > 0 and self.areAllSourceFilesC(sourceFiles)) else [])
 
-    def getUnderlyingCompilerCommand(self, srcFiles):
-        return ["clang", "-fsanitize=crunch"] + self.getClangArgs(srcFiles)
-
-    def getLibNameStem(self):
-        return "crunch"
-
-    def getLinkPath(self):
-        return path.realpath(path.join(LIBCRUNCH_BASE, "lib"))
+    def getUnderlyingCompilerCommand(self, sourceFiles):
+        return ["clang", "-fsanitize=crunch"] + \
+            self.getIncludeArgs(sourceFiles) + \
+            self.getClangArgs(sourceFiles)
 
 if __name__ == '__main__':
     wrapper = ClangCrunchCC()
