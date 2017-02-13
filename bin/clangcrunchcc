@@ -27,7 +27,7 @@ class ClangCrunchCC(ClangAllocsCC, CrunchCC):
                  if (len(sourceFiles) > 0 and self.areAllSourceFilesC(sourceFiles)) else [])
 
     def getUnderlyingCompilerCommand(self, sourceFiles):
-        return ["clang", "-fsanitize=crunch"] + \
+        return [self.getClangPath(), "-fsanitize=crunch"] + \
             self.getIncludeArgs(sourceFiles) + \
             self.getClangArgs(sourceFiles)
 

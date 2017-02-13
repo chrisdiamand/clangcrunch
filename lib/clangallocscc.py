@@ -20,6 +20,10 @@ os.environ["CC_IS_CLANG"] = "1"
 
 class ClangAllocsCC(AllocsCC):
 
+    def getClangPath(self):
+        # FIXME: make it overridable
+        return os.path.join(LIBALLOCS_BASE, "contrib/llvm/build/bin/clang")
+
     def getClangArgs(self, sourceFiles):
         return ["-g", "-fno-eliminate-unused-debug-types"] \
             + self.getCustomCompileArgs(sourceFiles) \
@@ -28,7 +32,7 @@ class ClangAllocsCC(AllocsCC):
                  len(sourceFiles) > 0) else [])
 
     def getUnderlyingCompilerCommand(self, sourceFiles):
-        return ["clang", "-fsanitize=allocs"] + self.getClangArgs(sourceFiles)
+        return [self.getClangPath(), "-fsanitize=allocs"] + self.getClangArgs(sourceFiles)
 
 if __name__ == '__main__':
     wrapper = ClangAllocsCC()
