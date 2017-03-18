@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import time
+import shutil
 
 TESTDIR = path.realpath(path.dirname(__file__))
 
@@ -45,11 +46,12 @@ def runWithEnv(cmd, env = {}):
                             cwd = TESTDIR)
     (stdout, stderr) = proc.communicate()
     returncode = proc.wait()
-
     elapsedTime = time.time() - startTime
 
     stdout = stdout.decode()
     stderr = stderr.decode()
+
+    sys.stderr.write("Command `%s' returned %d; stderr said `%s'\n" % (" ".join(cmd), returncode, stderr))
 
     return (returncode, stdout, stderr, elapsedTime)
 
@@ -100,8 +102,8 @@ COMPILERS = dict()
 class Compiler:
     def __init__(self, name, allocsCmd, crunchCmd, checkSummary):
         self.name = name
-        self.allocsCmd = allocsCmd
-        self.crunchCmd = crunchCmd
+        self.allocsCmd = [shutil.which(allocsCmd[0])] + allocsCmd[1:]
+        self.crunchCmd = [shutil.which(crunchCmd[0])] + crunchCmd[1:]
         self.checkSummary = checkSummary
 
     def getName(self):
@@ -120,10 +122,10 @@ class Compiler:
         assert self.getName not in COMPILERS
         COMPILERS[self.getName()] = self
 
-Compiler("new", ["clangallocscc"], ["clangcrunchcc"], True).add()
+Compiler("new", [TESTDIR + "/../bin/clangallocscc"], [TESTDIR + "/../bin/clangcrunchcc"], True).add()
 # Also need -gstrict-dwarf for stock/GCC.
-Compiler("stock", ["allocscc"], ["crunchcc"], True).add()
-base = ["clang", "-ldl", "-lallocs", "-g3", "-DNDEBUG"]
+Compiler("stock", [LIBALLOCS_BASE + "/tools/lang/c/bin/allocscc"], [LIBCRUNCH_BASE + "/frontend/c/bin/crunchcc"], True).add()
+base = ["clang", "-g3", "-DNDEBUG"]
 Compiler("base", base + ["-O0"], base + ["-O0"], False).add()
 Compiler("baseO3", base + ["-O3"], base + ["-O3"], False).add()
 
@@ -210,9 +212,12 @@ class AllocsTest(Test):
 
     def getBuildCmd(self, compiler):
         cmd = compiler.getAllocsCmd() \
-            + ["-std=c99", "-DUSE_STARTUP_BRK"] \
+            + ["-std=c99"] \
+            + ["-I" + path.join(LIBALLOCS_BASE, "include")] \
+            + ["-L" + path.join(LIBALLOCS_BASE, "lib")] \
             + self.flags \
-            + [self.src_fname, "-o", self.out_fname]
+            + [self.src_fname, "-o", self.out_fname] \
+            + ["-lallocs", "-ldl"]
         return cmd
 
     def getBuildEnv(self, compiler):
