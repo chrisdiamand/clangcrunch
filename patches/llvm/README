@@ -1,6 +1,0 @@
-Please apply the patch to commit 440f0b28a8061d86678d35fe0a45936b5eaf91d3, of
-the repository:
-    http://llvm.org/git/llvm.git
-
-Alternatively, check out https://github.com/chrisdiamand/llvm.git, which
-already has it included.
